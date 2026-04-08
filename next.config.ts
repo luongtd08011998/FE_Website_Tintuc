@@ -10,6 +10,12 @@ const nextConfig: NextConfig = {
         pathname: "/**",
       },
       {
+        protocol: "http",
+        hostname: "125.253.121.171",
+        port: "8080",
+        pathname: "/**",
+      },
+      {
         protocol: "https",
         hostname: "your-backend-domain.com",
         pathname: "/**",
