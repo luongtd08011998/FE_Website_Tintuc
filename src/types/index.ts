@@ -79,8 +79,9 @@ export interface CreateUserRequest {
   age: number;
   gender: Gender;
   address: string;
-  avatar?: string;
-  companyId?: number;
+  /** Backend expects explicit null when no avatar. */
+  avatar?: string | null;
+  companyId?: number | null;
   roleIds?: number[];
 }
 
@@ -91,8 +92,8 @@ export interface UpdateUserRequest {
   age: number;
   gender: Gender;
   address: string;
-  avatar?: string;
-  companyId?: number;
+  avatar?: string | null;
+  companyId?: number | null;
   roleIds?: number[];
 }
 

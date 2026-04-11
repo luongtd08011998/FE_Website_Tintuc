@@ -19,6 +19,7 @@ import {
 import { Select, App } from "antd";
 import RichTextEditor from "@/components/RichTextEditor";
 import useSWR from "swr";
+import { useAuthStore } from "@/lib/store";
 import { userService } from "@/services/user";
 import { categoryService } from "@/services/category";
 import { tagService } from "@/services/tag";
@@ -49,6 +50,39 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+function coalesceNumber(v: unknown): number {
+  if (typeof v === "string") return Number.parseInt(v, 10);
+  return Number(v);
+}
+
+/** Ant Design Select may emit strings; align with CreateArticleRequest / UpdateArticleRequest. */
+function formDataToCreatePayload(data: FormData): CreateArticleRequest {
+  const categoryRaw = data.categoryId;
+  const categoryId =
+    categoryRaw === undefined || categoryRaw === null
+      ? undefined
+      : coalesceNumber(categoryRaw);
+
+  const tagIds = (data.tagIds ?? [])
+    .map((id) => (typeof id === "string" ? Number.parseInt(id, 10) : Number(id)))
+    .filter((n) => Number.isInteger(n));
+
+  return {
+    title: data.title,
+    slug: data.slug,
+    content: data.content?.trim() ? data.content : undefined,
+    thumbnail: data.thumbnail?.trim() ? data.thumbnail : undefined,
+    type: coalesceNumber(data.type),
+    active:
+      data.active !== undefined && data.active !== null
+        ? coalesceNumber(data.active)
+        : undefined,
+    authorId: coalesceNumber(data.authorId),
+    categoryId,
+    tagIds,
+  };
+}
+
 type ArticleFormProps =
   | {
       mode: "create";
@@ -64,6 +98,7 @@ type ArticleFormProps =
 export default function ArticleForm(props: ArticleFormProps) {
   const router = useRouter();
   const isEdit = props.mode === "edit";
+  const currentUser = useAuthStore((s) => s.user);
   const { notification } = App.useApp();
   const [thumbnailPreview, setThumbnailPreview] = useState<string>(
     isEdit ? getFileUrl(props.defaultValues.thumbnail ?? "") : "",
@@ -76,6 +111,7 @@ export default function ArticleForm(props: ArticleFormProps) {
     handleSubmit,
     control,
     reset,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -113,12 +149,21 @@ export default function ArticleForm(props: ArticleFormProps) {
     }
   }, [isEdit, props, reset]);
 
+  /** HR (and similar) often cannot list all users; default author = signed-in user. */
+  useEffect(() => {
+    if (isEdit || !currentUser?.id) return;
+    setValue("authorId", currentUser.id, { shouldValidate: true });
+  }, [isEdit, currentUser?.id, setValue]);
+
   const handleFormSubmit = async (data: FormData) => {
     try {
       if (props.mode === "edit") {
-        await props.onSubmit({ ...data, id: props.defaultValues.id });
+        await props.onSubmit({
+          ...formDataToCreatePayload(data),
+          id: props.defaultValues.id,
+        });
       } else {
-        await props.onSubmit(data);
+        await props.onSubmit(formDataToCreatePayload(data));
       }
       notification.success({
         title: "Thành công",

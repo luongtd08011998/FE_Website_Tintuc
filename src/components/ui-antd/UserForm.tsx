@@ -39,6 +39,20 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+/** Ant Design Select may emit string values; backend expects numeric ids. */
+function normalizeRoleIds(value: unknown): number[] {
+  if (!value || !Array.isArray(value)) return [];
+  return value
+    .map((v) => (typeof v === "string" ? Number.parseInt(v, 10) : Number(v)))
+    .filter((n) => Number.isInteger(n) && n > 0);
+}
+
+/** Match API body: null when no avatar (JSON keeps the key). */
+function avatarForApi(value: string | undefined): string | null {
+  const s = value?.trim();
+  return s ? s : null;
+}
+
 type UserFormProps =
   | {
       mode: "create";
@@ -121,6 +135,8 @@ export default function UserForm(props: UserFormProps) {
 
   const handleFormSubmit = async (data: FormData) => {
     try {
+      const roleIds = normalizeRoleIds(data.roleIds);
+
       if (props.mode === "edit") {
         await props.onSubmit({
           id: props.defaultValues.id,
@@ -129,9 +145,9 @@ export default function UserForm(props: UserFormProps) {
           age: data.age as number,
           gender: data.gender,
           address: data.address,
-          avatar: data.avatar || undefined,
-          companyId: data.companyId,
-          roleIds: data.roleIds,
+          avatar: avatarForApi(data.avatar),
+          companyId: data.companyId ?? null,
+          roleIds,
         });
       } else {
         await props.onSubmit({
@@ -141,9 +157,9 @@ export default function UserForm(props: UserFormProps) {
           age: data.age as number,
           gender: data.gender,
           address: data.address,
-          avatar: data.avatar || undefined,
-          companyId: data.companyId,
-          roleIds: data.roleIds,
+          avatar: avatarForApi(data.avatar),
+          companyId: data.companyId ?? null,
+          roleIds,
         });
       }
       notification.success({

@@ -6,6 +6,7 @@ import PeopleIcon from "@mui/icons-material/People";
 import BusinessIcon from "@mui/icons-material/Business";
 import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
 import LockIcon from "@mui/icons-material/Lock";
+import { dashboardService } from "@/services/dashboard";
 import { userService } from "@/services/user";
 import { companyService } from "@/services/company";
 import { roleService } from "@/services/role";
@@ -57,27 +58,47 @@ export default function DashboardPage() {
   });
 
   useEffect(() => {
-    Promise.allSettled([
-      userService.getAll({ page: 1, size: 1 }),
-      companyService.getAll({ page: 1, size: 1 }),
-      roleService.getAll({ page: 1, size: 1 }),
-      permissionService.getAll({ page: 1, size: 1 }),
-    ]).then(([users, companies, roles, permissions]) => {
-      setStats({
-        users:
-          users.status === "fulfilled" ? users.value.data.data.meta.total : 0,
-        companies:
-          companies.status === "fulfilled"
-            ? companies.value.data.data.meta.total
-            : 0,
-        roles:
-          roles.status === "fulfilled" ? roles.value.data.data.meta.total : 0,
-        permissions:
-          permissions.status === "fulfilled"
-            ? permissions.value.data.data.meta.total
-            : 0,
+    const loadFromListEndpoints = () =>
+      Promise.allSettled([
+        userService.getAll({ page: 1, size: 1 }),
+        companyService.getAll({ page: 1, size: 1 }),
+        roleService.getAll({ page: 1, size: 1 }),
+        permissionService.getAll({ page: 1, size: 1 }),
+      ]).then(([users, companies, roles, permissions]) => {
+        setStats({
+          users:
+            users.status === "fulfilled"
+              ? users.value.data.data.meta.total
+              : 0,
+          companies:
+            companies.status === "fulfilled"
+              ? companies.value.data.data.meta.total
+              : 0,
+          roles:
+            roles.status === "fulfilled"
+              ? roles.value.data.data.meta.total
+              : 0,
+          permissions:
+            permissions.status === "fulfilled"
+              ? permissions.value.data.data.meta.total
+              : 0,
+        });
       });
-    });
+
+    dashboardService
+      .getSummary()
+      .then((res) => {
+        const d = res.data.data;
+        setStats({
+          users: d.totalUsers,
+          companies: d.totalCompanies,
+          roles: d.totalRoles,
+          permissions: d.totalPermissions,
+        });
+      })
+      .catch(() => {
+        void loadFromListEndpoints();
+      });
   }, []);
 
   return (

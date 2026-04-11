@@ -1,0 +1,18 @@
+{
+  "folders": [
+    {
+      "name": "FE Admin (Next.js)",
+      "path": "."
+    },
+    {
+      "name": "BE Admin (API)",
+      "path": "../../BE_Admin"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/.git": false
+    }
+  }
+}
