@@ -22,6 +22,8 @@ import useSWR from "swr";
 import { companyService } from "@/services/company";
 import { roleService } from "@/services/role";
 import { fileService, getFileUrl } from "@/services/file";
+import { authService } from "@/services/auth";
+import { useAuthStore } from "@/lib/store";
 import type { User, CreateUserRequest, UpdateUserRequest } from "@/types";
 
 // Unified schema – email/password are optional strings validated only in create mode via superRefine
@@ -68,6 +70,8 @@ type UserFormProps =
 export default function UserForm(props: UserFormProps) {
   const router = useRouter();
   const isEdit = props.mode === "edit";
+  const currentUser = useAuthStore((s) => s.user);
+  const setAuthUser = useAuthStore((s) => s.setUser);
   const { notification } = App.useApp();
   const [avatarPreview, setAvatarPreview] = useState<string>(
     isEdit ? getFileUrl(props.defaultValues.avatar ?? "") : "",
@@ -149,6 +153,10 @@ export default function UserForm(props: UserFormProps) {
           companyId: data.companyId ?? null,
           roleIds,
         });
+        if (currentUser?.id === props.defaultValues.id) {
+          const meRes = await authService.getMe();
+          setAuthUser(meRes.data.data);
+        }
       } else {
         await props.onSubmit({
           name: data.name,

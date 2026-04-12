@@ -67,17 +67,13 @@ export default function DashboardPage() {
       ]).then(([users, companies, roles, permissions]) => {
         setStats({
           users:
-            users.status === "fulfilled"
-              ? users.value.data.data.meta.total
-              : 0,
+            users.status === "fulfilled" ? users.value.data.data.meta.total : 0,
           companies:
             companies.status === "fulfilled"
               ? companies.value.data.data.meta.total
               : 0,
           roles:
-            roles.status === "fulfilled"
-              ? roles.value.data.data.meta.total
-              : 0,
+            roles.status === "fulfilled" ? roles.value.data.data.meta.total : 0,
           permissions:
             permissions.status === "fulfilled"
               ? permissions.value.data.data.meta.total

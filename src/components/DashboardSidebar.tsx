@@ -99,18 +99,17 @@ export default function DashboardSidebar({
           gap: 1,
         }}
       >
-        <Avatar
+        <Box
+          component="img"
+          src="/logocty1.jpg"
+          alt="Logo công ty"
           sx={{
             width: 56,
             height: 56,
-            bgcolor: "primary.main",
-            fontSize: "1.1rem",
-            fontWeight: 700,
+            objectFit: "contain",
+            display: "block",
           }}
-          aria-label="Logo công ty"
-        >
-          TT
-        </Avatar>
+        />
         <Typography
           variant="body2"
           fontWeight={700}
