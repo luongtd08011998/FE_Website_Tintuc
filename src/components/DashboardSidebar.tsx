@@ -29,7 +29,6 @@ import DescriptionIcon from "@mui/icons-material/Description";
 import CategoryIcon from "@mui/icons-material/Category";
 import ArticleIcon from "@mui/icons-material/Article";
 import LogoutIcon from "@mui/icons-material/Logout";
-import Image from "next/image";
 import { useAuthStore } from "@/lib/store";
 import { authService } from "@/services/auth";
 import { getFileUrl } from "@/services/file";
@@ -100,13 +99,18 @@ export default function DashboardSidebar({
           gap: 1,
         }}
       >
-        <Image
-          src="/logocty1.jpg"
-          alt="Logo công ty"
-          width={56}
-          height={56}
-          style={{ borderRadius: "50%", objectFit: "cover" }}
-        />
+        <Avatar
+          sx={{
+            width: 56,
+            height: 56,
+            bgcolor: "primary.main",
+            fontSize: "1.1rem",
+            fontWeight: 700,
+          }}
+          aria-label="Logo công ty"
+        >
+          TT
+        </Avatar>
         <Typography
           variant="body2"
           fontWeight={700}

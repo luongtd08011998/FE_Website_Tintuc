@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Box, Button, Typography, Paper } from "@mui/material";
+import { Box, Button, Typography, Paper, TextField, InputAdornment } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
 import { Table, Tag, Space, Popconfirm, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
@@ -22,13 +23,24 @@ export default function PermissionsPage() {
   const router = useRouter();
   const { notification } = App.useApp();
   const [pagination, setPagination] = useState({ page: 1, size: 10 });
+  const [nameInput, setNameInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(nameInput.trim());
+      setPagination((p) => ({ ...p, page: 1 }));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [nameInput]);
 
   const { data, isLoading, mutate } = useSWR(
-    ["permissions", pagination.page, pagination.size],
+    ["permissions", pagination.page, pagination.size, search],
     () =>
       permissionService.getAll({
         page: pagination.page,
         size: pagination.size,
+        name: search || undefined,
       }),
   );
 
@@ -124,6 +136,24 @@ export default function PermissionsPage() {
       </Box>
 
       <Paper sx={{ p: 2 }}>
+        <Box sx={{ mb: 2 }}>
+          <TextField
+            size="small"
+            placeholder="Tìm theo tên quyền..."
+            value={nameInput}
+            onChange={(e) => setNameInput(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{ width: 300 }}
+          />
+        </Box>
         <Table
           rowKey="id"
           dataSource={permissions}

@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Box, Button, Typography, Paper } from "@mui/material";
+import {
+  Box,
+  Button,
+  Typography,
+  Paper,
+  TextField,
+  InputAdornment,
+} from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
 import { Table, Space, Popconfirm, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
@@ -14,10 +22,25 @@ export default function TagsPage() {
   const router = useRouter();
   const { notification } = App.useApp();
   const [pagination, setPagination] = useState({ page: 1, size: 10 });
+  const [nameInput, setNameInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(nameInput.trim());
+      setPagination((p) => ({ ...p, page: 1 }));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [nameInput]);
 
   const { data, isLoading, mutate } = useSWR(
-    ["tags", pagination.page, pagination.size],
-    () => tagService.getAll({ page: pagination.page, size: pagination.size }),
+    ["tags", pagination.page, pagination.size, search],
+    () =>
+      tagService.getAll({
+        page: pagination.page,
+        size: pagination.size,
+        name: search || undefined,
+      }),
   );
 
   const meta = data?.data.data.meta;
@@ -112,6 +135,23 @@ export default function TagsPage() {
       </Box>
 
       <Paper sx={{ p: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Tìm theo tên tag..."
+          value={nameInput}
+          onChange={(e) => setNameInput(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ mb: 2, width: 280 }}
+        />
+
         <Table
           rowKey="id"
           dataSource={tags}

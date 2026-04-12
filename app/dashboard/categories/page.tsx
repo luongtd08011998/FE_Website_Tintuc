@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Box, Button, Typography, Paper } from "@mui/material";
+import {
+  Box,
+  Button,
+  Typography,
+  Paper,
+  TextField,
+  InputAdornment,
+} from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
 import { Table, Tag, Space, Popconfirm, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
@@ -14,13 +22,24 @@ export default function CategoriesPage() {
   const router = useRouter();
   const { notification } = App.useApp();
   const [pagination, setPagination] = useState({ page: 1, size: 10 });
+  const [keywordInput, setKeywordInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(keywordInput.trim());
+      setPagination((p) => ({ ...p, page: 1 }));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [keywordInput]);
 
   const { data, isLoading, mutate } = useSWR(
-    ["categories", pagination.page, pagination.size],
+    ["categories", pagination.page, pagination.size, search],
     () =>
       categoryService.getAll({
         page: pagination.page,
         size: pagination.size,
+        keyword: search || undefined,
       }),
   );
 
@@ -131,6 +150,23 @@ export default function CategoriesPage() {
       </Box>
 
       <Paper sx={{ p: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Tìm theo tên hoặc slug..."
+          value={keywordInput}
+          onChange={(e) => setKeywordInput(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ mb: 2, width: 320 }}
+        />
+
         <Table
           rowKey="id"
           dataSource={categories}

@@ -6,7 +6,7 @@
     },
     {
       "name": "BE Admin (API)",
-      "path": "../../BE_Admin"
+      "path": "../BE_Admin"
     }
   ],
   "settings": {

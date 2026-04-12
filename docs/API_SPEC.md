@@ -209,6 +209,9 @@ List all users with pagination.
 | page | int | 1 | Page number (1-based) |
 | size | int | 10 | Items per page |
 | sort | string | id,asc | Sort field and direction |
+| keyword | string | — | Search by name OR email (case-insensitive, contains) |
+| name | string | — | Filter by name (case-insensitive, contains) |
+| email | string | — | Filter by email (case-insensitive, contains) |
 
 **Success Response (200):**
 ```json

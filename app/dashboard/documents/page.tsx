@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Box, Button, Typography, Paper } from "@mui/material";
+import {
+  Box,
+  Button,
+  Typography,
+  Paper,
+  TextField,
+  InputAdornment,
+} from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
 import { Table, Space, Popconfirm, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
@@ -14,13 +22,24 @@ export default function DocumentsPage() {
   const router = useRouter();
   const { notification } = App.useApp();
   const [pagination, setPagination] = useState({ page: 1, size: 10 });
+  const [titleInput, setTitleInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(titleInput.trim());
+      setPagination((p) => ({ ...p, page: 1 }));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [titleInput]);
 
   const { data, isLoading, mutate } = useSWR(
-    ["documents", pagination.page, pagination.size],
+    ["documents", pagination.page, pagination.size, search],
     () =>
       documentService.getAll({
         page: pagination.page,
         size: pagination.size,
+        title: search || undefined,
       }),
   );
 
@@ -135,6 +154,23 @@ export default function DocumentsPage() {
       </Box>
 
       <Paper sx={{ p: 2 }}>
+        <TextField
+          size="small"
+          placeholder="Tìm theo tên tài liệu..."
+          value={titleInput}
+          onChange={(e) => setTitleInput(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ mb: 2, width: 300 }}
+        />
+
         <Table
           rowKey="id"
           dataSource={documents}

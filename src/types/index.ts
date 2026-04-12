@@ -21,6 +21,13 @@ export interface PaginationParams {
   page?: number;
   size?: number;
   sort?: string;
+  keyword?: string;
+  name?: string;
+  email?: string;
+  roleName?: string;
+  title?: string;
+  slug?: string;
+  category?: string;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

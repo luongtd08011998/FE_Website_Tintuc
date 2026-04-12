@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Box, Button, Typography, Paper } from "@mui/material";
+import {
+  Box,
+  Button,
+  Typography,
+  Paper,
+  TextField,
+  InputAdornment,
+} from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import SearchIcon from "@mui/icons-material/Search";
 import { Table, Tag, Space, Popconfirm, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
@@ -14,10 +22,33 @@ export default function UsersPage() {
   const router = useRouter();
   const { notification } = App.useApp();
   const [pagination, setPagination] = useState({ page: 1, size: 10 });
+  const [keyword, setKeyword] = useState("");
+  const [roleInput, setRoleInput] = useState("");
+  const [search, setSearch] = useState({ keyword: "", roleName: "" });
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch({ keyword: keyword.trim(), roleName: roleInput.trim() });
+      setPagination((p) => ({ ...p, page: 1 }));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [keyword, roleInput]);
 
   const { data, isLoading, mutate } = useSWR(
-    ["users", pagination.page, pagination.size],
-    () => userService.getAll({ page: pagination.page, size: pagination.size }),
+    [
+      "users",
+      pagination.page,
+      pagination.size,
+      search.keyword,
+      search.roleName,
+    ],
+    () =>
+      userService.getAll({
+        page: pagination.page,
+        size: pagination.size,
+        keyword: search.keyword || undefined,
+        roleName: search.roleName || undefined,
+      }),
   );
 
   const meta = data?.data.data.meta;
@@ -127,6 +158,25 @@ export default function UsersPage() {
       </Box>
 
       <Paper sx={{ p: 2 }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
+          <TextField
+            size="small"
+            placeholder="Tìm theo tên hoặc email..."
+            value={keyword}
+            onChange={(e) => setKeyword(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{ width: 300 }}
+          />
+        </Box>
+
         <Table
           rowKey="id"
           dataSource={users}

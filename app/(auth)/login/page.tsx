@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod/v3";
-import Image from "next/image";
 import {
   Box,
   Button,
@@ -15,6 +14,7 @@ import {
   Paper,
   Alert,
   CircularProgress,
+  Avatar,
 } from "@mui/material";
 import { authService } from "@/services/auth";
 import { useAuthStore } from "@/lib/store";
@@ -66,13 +66,18 @@ export default function LoginPage() {
           mb: 3,
         }}
       >
-        <Image
-          src="/logocty1.jpg"
-          alt="Logo công ty"
-          width={80}
-          height={80}
-          style={{ borderRadius: "50%", objectFit: "cover" }}
-        />
+        <Avatar
+          sx={{
+            width: 80,
+            height: 80,
+            bgcolor: "primary.main",
+            fontSize: "1.75rem",
+            fontWeight: 700,
+          }}
+          aria-label="Logo công ty"
+        >
+          TT
+        </Avatar>
         <Typography
           variant="subtitle1"
           fontWeight={700}
