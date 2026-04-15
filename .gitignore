@@ -20,6 +20,9 @@
 # production
 /build
 
+# local overrides (URL BE tùy máy)
+.env.local
+
 # misc
 .DS_Store
 *.pem
