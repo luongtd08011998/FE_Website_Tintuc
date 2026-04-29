@@ -22,6 +22,8 @@ export interface PaginationParams {
   size?: number;
   sort?: string;
   keyword?: string;
+  /** Article list: 0=thường, 1=nổi bật, 2=tin tức */
+  type?: number;
   name?: string;
   email?: string;
   roleName?: string;
@@ -321,4 +323,95 @@ export interface UpdateArticleRequest {
   authorId: number;
   categoryId?: number;
   tagIds: number[];
+}
+
+// ─── Feedback ──────────────────────────────────────────────────────────────────
+
+export type FeedbackStatus = "PENDING" | "PROCESSING" | "RESOLVED" | "REJECTED";
+
+export type IssueType =
+  | "LEAK"
+  | "QUALITY"
+  | "PRESSURE"
+  | "OUTAGE"
+  | "BILLING"
+  | "METER"
+  | "OTHER";
+
+export interface FeedbackCustomer {
+  customerId: number;
+  digiCode: string;
+  name: string;
+  phone: string;
+  email: string;
+  address?: string;
+}
+
+export interface FeedbackStaff {
+  id: number;
+  name: string;
+  email: string;
+  avatar?: string;
+}
+
+export interface FeedbackReply {
+  id: number;
+  staff: FeedbackStaff;
+  content: string;
+  createdAt: string;
+}
+
+export interface FeedbackItem {
+  id: number;
+  trackingCode: string;
+  customer: FeedbackCustomer;
+  issueType: IssueType;
+  location: string;
+  description: string;
+  status: FeedbackStatus;
+  replyCount: number;
+  images: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeedbackDetail {
+  id: number;
+  trackingCode: string;
+  customer: FeedbackCustomer;
+  issueType: IssueType;
+  location: string;
+  description: string;
+  status: FeedbackStatus;
+  images: string[];
+  replies: FeedbackReply[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FeedbackStatistics {
+  byStatus: Record<FeedbackStatus, number>;
+  byIssueType: Record<IssueType, number>;
+  trendCounts: { last7Days: number; last30Days: number };
+  hotspotLocations: { location: string; count: number }[];
+}
+
+export interface FeedbackListParams {
+  keyword?: string;
+  status?: FeedbackStatus;
+  issueType?: IssueType;
+  customerSearch?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  page?: number;
+  size?: number;
+  sort?: string;
+}
+
+export interface UpdateFeedbackStatusRequest {
+  status: FeedbackStatus;
+}
+
+export interface CreateFeedbackReplyRequest {
+  content: string;
 }

@@ -9,6 +9,10 @@ import {
   Paper,
   TextField,
   InputAdornment,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import SearchIcon from "@mui/icons-material/Search";
@@ -30,6 +34,7 @@ export default function ArticlesPage() {
   const [pagination, setPagination] = useState({ page: 1, size: 10 });
   const [keywordInput, setKeywordInput] = useState("");
   const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState<number | undefined>(undefined);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -40,12 +45,13 @@ export default function ArticlesPage() {
   }, [keywordInput]);
 
   const { data, isLoading, mutate } = useSWR(
-    ["articles", pagination.page, pagination.size, search],
+    ["articles", pagination.page, pagination.size, search, typeFilter],
     () =>
       articleService.getAll({
         page: pagination.page,
         size: pagination.size,
         keyword: search || undefined,
+        ...(typeFilter !== undefined ? { type: typeFilter } : {}),
       }),
   );
 
@@ -180,22 +186,50 @@ export default function ArticlesPage() {
       </Box>
 
       <Paper sx={{ p: 2 }}>
-        <TextField
-          size="small"
-          placeholder="Tìm theo tiêu đề, slug hoặc tên danh mục..."
-          value={keywordInput}
-          onChange={(e) => setKeywordInput(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            },
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 2,
+            alignItems: "center",
+            mb: 2,
           }}
-          sx={{ mb: 2, width: 380 }}
-        />
+        >
+          <TextField
+            size="small"
+            placeholder="Tìm theo tiêu đề, slug hoặc tên danh mục..."
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{ width: 380 }}
+          />
+          <FormControl size="small" sx={{ minWidth: 180 }}>
+            <InputLabel id="article-type-filter">Loại bài</InputLabel>
+            <Select
+              labelId="article-type-filter"
+              label="Loại bài"
+              value={typeFilter === undefined ? "" : String(typeFilter)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setTypeFilter(v === "" ? undefined : Number(v));
+                setPagination((p) => ({ ...p, page: 1 }));
+              }}
+            >
+              <MenuItem value="">Tất cả</MenuItem>
+              <MenuItem value="0">Thường</MenuItem>
+              <MenuItem value="1">Nổi bật</MenuItem>
+              <MenuItem value="2">Tin tức</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
 
         <Table
           rowKey="id"

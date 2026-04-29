@@ -28,6 +28,7 @@ import LocalOfferIcon from "@mui/icons-material/LocalOffer";
 import DescriptionIcon from "@mui/icons-material/Description";
 import CategoryIcon from "@mui/icons-material/Category";
 import ArticleIcon from "@mui/icons-material/Article";
+import ForumIcon from "@mui/icons-material/Forum";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { useAuthStore } from "@/lib/store";
 import { authService } from "@/services/auth";
@@ -37,6 +38,7 @@ const DRAWER_WIDTH = 240;
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: <DashboardIcon /> },
+  { label: "Phản hồi", href: "/dashboard/feedbacks", icon: <ForumIcon /> },
   { label: "Người dùng", href: "/dashboard/users", icon: <PeopleIcon /> },
   { label: "Công ty", href: "/dashboard/companies", icon: <BusinessIcon /> },
   {
