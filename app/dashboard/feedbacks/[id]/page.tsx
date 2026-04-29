@@ -54,10 +54,10 @@ export default function FeedbackDetailPage() {
   const handleStatusChange = async (newStatus: FeedbackStatus) => {
     try {
       await feedbackService.updateStatus(id, { status: newStatus });
-      notification.success({ message: "Cập nhật trạng thái thành công" });
+      notification.success({ title: "Cập nhật trạng thái thành công" });
       mutate();
     } catch {
-      notification.error({ message: "Cập nhật trạng thái thất bại" });
+      notification.error({ title: "Cập nhật trạng thái thất bại" });
     }
   };
 
@@ -66,11 +66,11 @@ export default function FeedbackDetailPage() {
     setSubmitting(true);
     try {
       await feedbackService.addReply(id, { content: replyContent.trim() });
-      notification.success({ message: "Gửi phản hồi thành công" });
+      notification.success({ title: "Gửi phản hồi thành công" });
       setReplyContent("");
       mutate();
     } catch {
-      notification.error({ message: "Gửi phản hồi thất bại" });
+      notification.error({ title: "Gửi phản hồi thất bại" });
     } finally {
       setSubmitting(false);
     }
