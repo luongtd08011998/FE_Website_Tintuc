@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Box, Typography, Paper, TextField, InputAdornment } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -45,7 +45,7 @@ const ISSUE_TYPE_LABEL: Record<IssueType, string> = {
   OTHER: "Khác",
 };
 
-export default function FeedbacksPage() {
+function FeedbacksContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { notification } = App.useApp();
@@ -288,5 +288,13 @@ export default function FeedbacksPage() {
         />
       </Paper>
     </Box>
+  );
+}
+
+export default function FeedbacksPage() {
+  return (
+    <Suspense>
+      <FeedbacksContent />
+    </Suspense>
   );
 }
