@@ -30,6 +30,7 @@ import CategoryIcon from "@mui/icons-material/Category";
 import ArticleIcon from "@mui/icons-material/Article";
 import ForumIcon from "@mui/icons-material/Forum";
 import LogoutIcon from "@mui/icons-material/Logout";
+import PermMediaIcon from "@mui/icons-material/PermMedia";
 import { useAuthStore } from "@/lib/store";
 import { authService } from "@/services/auth";
 import { getFileUrl } from "@/services/file";
@@ -53,6 +54,7 @@ const navItems = [
     href: "/dashboard/documents",
     icon: <DescriptionIcon />,
   },
+  { label: "Thư viện Media", href: "/dashboard/media", icon: <PermMediaIcon /> },
   { label: "Danh mục", href: "/dashboard/categories", icon: <CategoryIcon /> },
   { label: "Bài viết", href: "/dashboard/articles", icon: <ArticleIcon /> },
 ];

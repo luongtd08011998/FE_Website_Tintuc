@@ -415,3 +415,22 @@ export interface UpdateFeedbackStatusRequest {
 export interface CreateFeedbackReplyRequest {
   content: string;
 }
+// ─── Media ────────────────────────────────────────────────────────────────────
+
+export interface Media {
+  id: number;
+  title: string;
+  fileName: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  uploadedBy: number;
+  createdAt: string;
+}
+
+export interface MediaParams {
+  page?: number;
+  pageSize?: number;
+  title?: string;
+  fileType?: string;
+}
