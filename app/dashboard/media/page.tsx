@@ -166,7 +166,7 @@ export default function MediaPage() {
         <>
           <Grid container spacing={3}>
             {mediaList.map((media) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={media.id}>
+              <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={media.id}>
                 <MediaCard
                   media={media}
                   onDelete={handleDeleteMedia}
