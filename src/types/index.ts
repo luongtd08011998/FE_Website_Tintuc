@@ -452,5 +452,7 @@ export interface AdminInvoiceParams {
   size?: number;
   yearMonth?: string;
   paymentStatus?: number;
+  customerName?: string;
+  digiCode?: string;
 }
 

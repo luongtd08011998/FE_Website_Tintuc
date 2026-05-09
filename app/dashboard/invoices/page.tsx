@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Box, Typography, Paper } from "@mui/material";
+import { Box, Typography, Paper, TextField, InputAdornment } from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
 import { Table, DatePicker, Select, Tag } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
@@ -21,6 +22,23 @@ function InvoicesContent() {
   const [pagination, setPagination] = useState({ page: 1, size: 10 });
   const [yearMonth, setYearMonth] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<number | null>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [digiCode, setDigiCode] = useState("");
+  const [debounced, setDebounced] = useState({
+    customerName: "",
+    digiCode: "",
+  });
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebounced({
+        customerName: customerName.trim(),
+        digiCode: digiCode.trim(),
+      });
+      setPagination((p) => ({ ...p, page: 1 }));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [customerName, digiCode]);
 
   const fetcher = useCallback(() => {
     const params: Record<string, unknown> = {
@@ -29,12 +47,14 @@ function InvoicesContent() {
     };
     if (yearMonth) params.yearMonth = yearMonth;
     if (paymentStatus !== null) params.paymentStatus = paymentStatus;
+    if (debounced.customerName) params.customerName = debounced.customerName;
+    if (debounced.digiCode) params.digiCode = debounced.digiCode;
     
     return invoiceService.getAll(params);
-  }, [pagination.page, pagination.size, yearMonth, paymentStatus]);
+  }, [pagination.page, pagination.size, yearMonth, paymentStatus, debounced.customerName, debounced.digiCode]);
 
   const { data, isLoading } = useSWR(
-    yearMonth ? ["invoices", pagination.page, pagination.size, yearMonth, paymentStatus] : null,
+    yearMonth ? ["invoices", pagination.page, pagination.size, yearMonth, paymentStatus, debounced.customerName, debounced.digiCode] : null,
     fetcher
   );
 
@@ -120,19 +140,47 @@ function InvoicesContent() {
 
       <Paper sx={{ p: 2 }}>
         <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
+          <TextField
+            size="small"
+            placeholder="Tìm theo Mã KH..."
+            value={digiCode}
+            onChange={(e) => setDigiCode(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ width: 180 }}
+          />
+          <TextField
+            size="small"
+            placeholder="Tìm theo Tên KH..."
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+            sx={{ width: 220 }}
+          />
           <DatePicker
             picker="month"
             placeholder="Chọn kỳ (Tháng/Năm)"
             format="MM/YYYY"
             onChange={handleMonthChange}
             allowClear
-            style={{ width: 200 }}
+            style={{ width: 180 }}
           />
           
           <Select
             placeholder="Trạng thái thanh toán"
             allowClear
-            style={{ width: 200 }}
+            style={{ width: 180 }}
             value={paymentStatus}
             onChange={(val) => {
               setPaymentStatus(val ?? null);
