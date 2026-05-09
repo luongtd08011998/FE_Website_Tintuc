@@ -434,3 +434,23 @@ export interface MediaParams {
   title?: string;
   fileType?: string;
 }
+
+// ─── Invoice ──────────────────────────────────────────────────────────────────
+
+export interface AdminInvoice {
+  id: number;
+  digiCode: string;
+  customerName: string;
+  totalAmount: number;
+  yearMonth: string;
+  invoiceNo: string;
+  paymentStatus: number; // 1 = Chưa thanh toán, 2 = Đã thanh toán
+}
+
+export interface AdminInvoiceParams {
+  page?: number;
+  size?: number;
+  yearMonth?: string;
+  paymentStatus?: number;
+}
+
