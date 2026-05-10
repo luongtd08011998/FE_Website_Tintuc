@@ -445,6 +445,7 @@ export interface AdminInvoice {
   yearMonth: string;
   invoiceNo: string;
   paymentStatus: number; // 1 = Chưa thanh toán, 2 = Đã thanh toán
+  isReminded?: boolean;
 }
 
 export interface AdminInvoiceParams {
@@ -454,5 +455,6 @@ export interface AdminInvoiceParams {
   paymentStatus?: number;
   customerName?: string;
   digiCode?: string;
+  remindStatus?: number;
 }
 

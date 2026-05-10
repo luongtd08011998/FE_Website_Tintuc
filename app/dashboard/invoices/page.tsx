@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Box, Typography, Paper, TextField, InputAdornment } from "@mui/material";
+import { Box, Typography, Paper, TextField, InputAdornment, Button } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import { Table, DatePicker, Select, Tag } from "antd";
+import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
+import DownloadIcon from "@mui/icons-material/Download";
+import { Table, DatePicker, Select, Tag, Modal, message, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
 import dayjs from "dayjs";
@@ -19,15 +21,20 @@ const STATUS_OPTIONS = [
 function InvoicesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { modal, message: appMessage } = App.useApp();
   const [pagination, setPagination] = useState({ page: 1, size: 10 });
   const [yearMonth, setYearMonth] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<number | null>(null);
+  const [remindStatus, setRemindStatus] = useState<number | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [digiCode, setDigiCode] = useState("");
   const [debounced, setDebounced] = useState({
     customerName: "",
     digiCode: "",
   });
+
+  const [isSendingReminder, setIsSendingReminder] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -42,19 +49,20 @@ function InvoicesContent() {
 
   const fetcher = useCallback(() => {
     const params: Record<string, unknown> = {
-      page: pagination.page - 1,
+      page: pagination.page,  // Spring đã cấu hình one-indexed-parameters: true
       size: pagination.size,
     };
     if (yearMonth) params.yearMonth = yearMonth;
     if (paymentStatus !== null) params.paymentStatus = paymentStatus;
+    if (remindStatus !== null) params.remindStatus = remindStatus;
     if (debounced.customerName) params.customerName = debounced.customerName;
     if (debounced.digiCode) params.digiCode = debounced.digiCode;
     
     return invoiceService.getAll(params);
-  }, [pagination.page, pagination.size, yearMonth, paymentStatus, debounced.customerName, debounced.digiCode]);
+  }, [pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode]);
 
   const { data, isLoading } = useSWR(
-    yearMonth ? ["invoices", pagination.page, pagination.size, yearMonth, paymentStatus, debounced.customerName, debounced.digiCode] : null,
+    yearMonth ? ["invoices", pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode] : null,
     fetcher
   );
 
@@ -82,7 +90,127 @@ function InvoicesContent() {
     return `${ym.substring(4, 6)}/${ym.substring(0, 4)}`;
   };
 
+  const handleSendReminder = () => {
+    if (!yearMonth) return;
+    modal.confirm({
+      title: "Gửi nhắc nợ",
+      content: `Bạn có chắc chắn muốn gửi thông báo nhắc nợ cho tất cả khách hàng chưa thanh toán trong kỳ ${formatYearMonth(yearMonth)}?`,
+      okText: "Gửi ngay",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          setIsSendingReminder(true);
+          const res = await invoiceService.sendDebtReminder(yearMonth);
+          if (res.data.data) {
+             appMessage.success(`Gửi thành công: Đã gửi ${res.data.data.sentCount} thông báo.`);
+          } else {
+             appMessage.success("Đã hoàn tất gửi nhắc nợ.");
+          }
+        } catch (error: any) {
+          appMessage.error("Có lỗi xảy ra khi gửi thông báo: " + error.message);
+        } finally {
+          setIsSendingReminder(false);
+        }
+      },
+    });
+  };
+
+  const handleExport = async () => {
+    if (!yearMonth) {
+      appMessage.warning("Vui lòng chọn kỳ hóa đơn trước khi xuất file.");
+      return;
+    }
+    try {
+      setIsExporting(true);
+      // Gọi API lấy toàn bộ dữ liệu theo bộ lọc hiện tại
+      const params: Record<string, unknown> = {
+        page: 1,
+        size: 99999,
+        yearMonth,
+      };
+      if (paymentStatus !== null) params.paymentStatus = paymentStatus;
+      if (remindStatus !== null) params.remindStatus = remindStatus;
+      if (debounced.customerName) params.customerName = debounced.customerName;
+      if (debounced.digiCode) params.digiCode = debounced.digiCode;
+
+      const res = await invoiceService.getAll(params);
+      const rows: AdminInvoice[] = res.data.data.result ?? [];
+
+      if (rows.length === 0) {
+        appMessage.info("Không có dữ liệu để xuất.");
+        return;
+      }
+
+      // Tạo nội dung CSV
+      const PAYMENT_LABEL: Record<number, string> = { 1: "Chưa thanh toán", 2: "Đã thanh toán" };
+      const headers = ["STT", "Mã KH", "Tên khách hàng", "Kỳ hóa đơn", "Mã hóa đơn", "Tổng tiền (VNĐ)", "Trạng thái", "Nhắc nợ"];
+      const csvData = rows.map((row, idx) => [
+        idx + 1,
+        row.digiCode,
+        row.customerName,
+        `${String(row.yearMonth).substring(4, 6)}/${String(row.yearMonth).substring(0, 4)}`,
+        row.invoiceNo ?? "",
+        row.totalAmount,
+        PAYMENT_LABEL[row.paymentStatus] ?? "",
+        row.isReminded ? "Đã nhắc" : "Chưa nhắc",
+      ]);
+
+      const csvContent = [headers, ...csvData]
+        .map((row) =>
+          row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+        )
+        .join("\n");
+
+      // Thêm BOM để Excel mở đúng tiếng Việt
+      const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const ym = `${String(yearMonth).substring(4, 6)}-${String(yearMonth).substring(0, 4)}`;
+      link.href = url;
+      link.download = `hoa-don-${ym}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      appMessage.success(`Xuất thành công ${rows.length} hóa đơn.`);
+    } catch (error: any) {
+      appMessage.error("Xuất file thất bại: " + error.message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleSendSingleReminder = (record: AdminInvoice) => {
+    modal.confirm({
+      title: "Gửi nhắc nợ",
+      content: `Bạn có chắc chắn muốn gửi thông báo nhắc nợ cho khách hàng ${record.customerName}?`,
+      okText: "Gửi ngay",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          setIsSendingReminder(true);
+          const res = await invoiceService.sendDebtReminder(record.yearMonth, record.id);
+          if (res.data.data && res.data.data.sentCount > 0) {
+             appMessage.success(`Đã gửi thông báo nhắc nợ cho ${record.customerName}.`);
+          } else {
+             appMessage.info("Không gửi được thông báo hoặc khách hàng này đã đóng tiền/không có thiết bị.");
+          }
+        } catch (error: any) {
+          appMessage.error("Có lỗi xảy ra khi gửi thông báo: " + error.message);
+        } finally {
+          setIsSendingReminder(false);
+        }
+      },
+    });
+  };
+
   const columns = [
+    {
+      title: "STT",
+      key: "stt",
+      width: 60,
+      render: (_: any, __: any, index: number) =>
+        (pagination.page - 1) * pagination.size + index + 1,
+    },
     {
       title: "Mã KH",
       dataIndex: "digiCode",
@@ -104,7 +232,7 @@ function InvoicesContent() {
       render: (v: string) => formatYearMonth(v),
     },
     {
-      title: "Mã hóa đơn VNPT",
+      title: "Mã hóa đơn",
       dataIndex: "invoiceNo",
       key: "invoiceNo",
       width: 180,
@@ -128,6 +256,33 @@ function InvoicesContent() {
         return <Tag>Không xác định</Tag>;
       },
     },
+    {
+      title: "Hành động",
+      key: "action",
+      width: 140,
+      render: (_: any, record: AdminInvoice) => {
+        if (record.paymentStatus === 1) {
+          return (
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <Button
+                variant="outlined"
+                color={record.isReminded ? "success" : "warning"}
+                size="small"
+                startIcon={<NotificationsActiveIcon />}
+                onClick={() => handleSendSingleReminder(record)}
+                disabled={isSendingReminder}
+              >
+                {record.isReminded ? "Nhắc lại" : "Nhắc nợ"}
+              </Button>
+              {record.isReminded && (
+                <Tag color="blue">Đã nhắc</Tag>
+              )}
+            </Box>
+          );
+        }
+        return null;
+      },
+    },
   ];
 
   return (
@@ -136,6 +291,30 @@ function InvoicesContent() {
         <Typography variant="h5" fontWeight={700}>
           Quản lý Hóa đơn
         </Typography>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          {yearMonth && (
+            <Button
+              variant="outlined"
+              color="success"
+              startIcon={<DownloadIcon />}
+              onClick={handleExport}
+              disabled={isExporting}
+            >
+              {isExporting ? "Đang xuất..." : "Xuất Excel"}
+            </Button>
+          )}
+          {paymentStatus === 1 && yearMonth && (
+             <Button
+               variant="contained"
+               color="warning"
+               startIcon={<NotificationsActiveIcon />}
+               onClick={handleSendReminder}
+               disabled={isSendingReminder}
+             >
+               Gửi nhắc nợ
+             </Button>
+          )}
+        </Box>
       </Box>
 
       <Paper sx={{ p: 2 }}>
@@ -188,6 +367,21 @@ function InvoicesContent() {
             }}
             options={STATUS_OPTIONS}
           />
+
+          <Select
+            placeholder="Trạng thái nhắc nợ"
+            allowClear
+            style={{ width: 180 }}
+            value={remindStatus}
+            onChange={(val) => {
+              setRemindStatus(val ?? null);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            options={[
+              { label: "Đã nhắc nợ", value: 1 },
+              { label: "Chưa nhắc nợ", value: 0 },
+            ]}
+          />
         </Box>
 
         {!yearMonth ? (
@@ -222,8 +416,10 @@ function InvoicesContent() {
 
 export default function InvoicesPage() {
   return (
-    <Suspense>
-      <InvoicesContent />
-    </Suspense>
+    <App>
+      <Suspense>
+        <InvoicesContent />
+      </Suspense>
+    </App>
   );
 }

@@ -7,4 +7,11 @@ export const invoiceService = {
       params,
     });
   },
+
+  sendDebtReminder: async (yearMonth: string, monthInvoiceId?: number) => {
+    return axiosInstance.post<ApiResponse<{ sentCount: number; skipCount: number }>>("/admin/invoices/send-debt-reminder", {
+      yearMonth,
+      monthInvoiceId: monthInvoiceId?.toString(),
+    });
+  },
 };
