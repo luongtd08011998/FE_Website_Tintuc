@@ -35,6 +35,7 @@ function InvoicesContent() {
 
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -46,6 +47,11 @@ function InvoicesContent() {
     }, 400);
     return () => clearTimeout(t);
   }, [customerName, digiCode]);
+
+  // Reset selection khi đổi trang hoặc filter
+  useEffect(() => {
+    setSelectedRowKeys([]);
+  }, [pagination.page, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode]);
 
   const fetcher = useCallback(() => {
     const params: Record<string, unknown> = {
@@ -93,8 +99,8 @@ function InvoicesContent() {
   const handleSendReminder = () => {
     if (!yearMonth) return;
     modal.confirm({
-      title: "Gửi nhắc nợ",
-      content: `Bạn có chắc chắn muốn gửi thông báo nhắc nợ cho tất cả khách hàng chưa thanh toán trong kỳ ${formatYearMonth(yearMonth)}?`,
+      title: "Gửi nhắc nợ toàn bộ",
+      content: `Bạn có chắc chắn muốn gửi thông báo nhắc nợ cho TẤT CẢ khách hàng chưa thanh toán trong kỳ ${formatYearMonth(yearMonth)}?`,
       okText: "Gửi ngay",
       cancelText: "Hủy",
       onOk: async () => {
@@ -108,6 +114,44 @@ function InvoicesContent() {
           }
         } catch (error: any) {
           appMessage.error("Có lỗi xảy ra khi gửi thông báo: " + error.message);
+        } finally {
+          setIsSendingReminder(false);
+        }
+      },
+    });
+  };
+
+  const handleSelectedReminder = () => {
+    if (selectedRowKeys.length === 0) return;
+    modal.confirm({
+      title: "Gửi nhắc nợ mục đã chọn",
+      content: `Bạn có chắc chắn muốn gửi thông báo nhắc nợ cho ${selectedRowKeys.length} khách hàng đã chọn?`,
+      okText: "Gửi ngay",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          setIsSendingReminder(true);
+          let successCount = 0;
+          
+          // Vì BE chỉ nhận 1 ID mỗi lần gọi, ta thực hiện gọi lần lượt
+          for (const id of selectedRowKeys) {
+            const invoice = invoices.find((inv: AdminInvoice) => inv.id === id);
+            if (invoice) {
+              try {
+                const res = await invoiceService.sendDebtReminder(invoice.yearMonth, invoice.id);
+                if (res.data.data && res.data.data.sentCount > 0) {
+                  successCount++;
+                }
+              } catch (e) {
+                console.error(`Lỗi gửi cho ID ${id}`, e);
+              }
+            }
+          }
+          
+          appMessage.success(`Đã gửi thành công ${successCount}/${selectedRowKeys.length} thông báo.`);
+          setSelectedRowKeys([]);
+        } catch (error: any) {
+          appMessage.error("Có lỗi xảy ra khi gửi thông báo.");
         } finally {
           setIsSendingReminder(false);
         }
@@ -203,6 +247,23 @@ function InvoicesContent() {
     });
   };
 
+  // Xác định những khách hàng có hóa đơn 0 đồng trong cùng kỳ để không nhắc nợ
+  const customersWithZeroInvoice = new Set<string>();
+  invoices.forEach((inv: AdminInvoice) => {
+    if (inv.totalAmount === 0) {
+      customersWithZeroInvoice.add(`${inv.digiCode}_${inv.yearMonth}`);
+    }
+  });
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
+    getCheckboxProps: (record: AdminInvoice) => ({
+      // Vô hiệu hóa checkbox cho hóa đơn đã thanh toán hoặc hóa đơn thay thế
+      disabled: record.paymentStatus === 2 || customersWithZeroInvoice.has(`${record.digiCode}_${record.yearMonth}`),
+    }),
+  };
+
   const columns = [
     {
       title: "STT",
@@ -261,7 +322,10 @@ function InvoicesContent() {
       key: "action",
       width: 140,
       render: (_: any, record: AdminInvoice) => {
-        if (record.paymentStatus === 1) {
+        // Nếu cùng kỳ có hóa đơn 0 đồng (hóa đơn thay thế) thì không hiển thị nút nhắc nợ
+        const hasReplacement = customersWithZeroInvoice.has(`${record.digiCode}_${record.yearMonth}`);
+        
+        if (record.paymentStatus === 1 && !hasReplacement) {
           return (
             <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
               <Button
@@ -280,6 +344,11 @@ function InvoicesContent() {
             </Box>
           );
         }
+
+        if (hasReplacement) {
+           return <Tag color="default">Hóa đơn thay thế</Tag>;
+        }
+
         return null;
       },
     },
@@ -292,6 +361,17 @@ function InvoicesContent() {
           Quản lý Hóa đơn
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
+          {selectedRowKeys.length > 0 && (
+            <Button
+              variant="contained"
+              color="info"
+              startIcon={<NotificationsActiveIcon />}
+              onClick={handleSelectedReminder}
+              disabled={isSendingReminder}
+            >
+              Nhắc nợ ({selectedRowKeys.length})
+            </Button>
+          )}
           {yearMonth && (
             <Button
               variant="outlined"
@@ -311,7 +391,7 @@ function InvoicesContent() {
                onClick={handleSendReminder}
                disabled={isSendingReminder}
              >
-               Gửi nhắc nợ
+               Nhắc nợ toàn bộ
              </Button>
           )}
         </Box>
@@ -393,6 +473,7 @@ function InvoicesContent() {
         ) : (
           <Table
             rowKey="id"
+            rowSelection={rowSelection}
             dataSource={invoices}
             columns={columns}
             loading={isLoading}
