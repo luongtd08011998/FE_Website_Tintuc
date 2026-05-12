@@ -143,7 +143,7 @@ function InvoicesContent() {
                   successCount++;
                 }
               } catch (e) {
-                console.error(`Lỗi gửi cho ID ${id}`, e);
+                console.error(`Lỗi gửi cho ID ${String(id)}`, e);
               }
             }
           }
