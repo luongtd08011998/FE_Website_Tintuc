@@ -14,6 +14,7 @@ import { invoiceService } from "@/services/invoice";
 import type { AdminInvoice } from "@/types";
 
 const STATUS_OPTIONS = [
+  { label: "Tất cả trạng thái", value: null },
   { label: "Chưa thanh toán", value: 1 },
   { label: "Đã thanh toán", value: 2 },
 ];
@@ -451,6 +452,7 @@ function InvoicesContent() {
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             options={[
+              { label: "Tất cả nhắc nợ", value: null },
               { label: "Đã nhắc nợ", value: 1 },
               { label: "Chưa nhắc nợ", value: 0 },
             ]}
