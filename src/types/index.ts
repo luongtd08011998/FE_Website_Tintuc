@@ -446,6 +446,7 @@ export interface AdminInvoice {
   invoiceNo: string;
   paymentStatus: number; // 1 = Chưa thanh toán, 2 = Đã thanh toán
   isReminded?: boolean;
+  hasReplacement?: boolean;
 }
 
 export interface AdminInvoiceParams {
@@ -457,4 +458,3 @@ export interface AdminInvoiceParams {
   digiCode?: string;
   remindStatus?: number;
 }
-

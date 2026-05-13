@@ -247,20 +247,13 @@ function InvoicesContent() {
     });
   };
 
-  // Xác định những khách hàng có hóa đơn 0 đồng trong cùng kỳ để không nhắc nợ
-  const customersWithZeroInvoice = new Set<string>();
-  invoices.forEach((inv: AdminInvoice) => {
-    if (inv.totalAmount === 0) {
-      customersWithZeroInvoice.add(`${inv.digiCode}_${inv.yearMonth}`);
-    }
-  });
 
   const rowSelection = {
     selectedRowKeys,
     onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
     getCheckboxProps: (record: AdminInvoice) => ({
       // Vô hiệu hóa checkbox cho hóa đơn đã thanh toán hoặc hóa đơn thay thế
-      disabled: record.paymentStatus === 2 || customersWithZeroInvoice.has(`${record.digiCode}_${record.yearMonth}`),
+      disabled: record.paymentStatus === 2 || record.hasReplacement,
     }),
   };
 
@@ -322,8 +315,8 @@ function InvoicesContent() {
       key: "action",
       width: 140,
       render: (_: any, record: AdminInvoice) => {
-        // Nếu cùng kỳ có hóa đơn 0 đồng (hóa đơn thay thế) thì không hiển thị nút nhắc nợ
-        const hasReplacement = customersWithZeroInvoice.has(`${record.digiCode}_${record.yearMonth}`);
+        // Sử dụng flag hasReplacement trả về từ Backend
+        const hasReplacement = record.hasReplacement;
         
         if (record.paymentStatus === 1 && !hasReplacement) {
           return (
