@@ -598,7 +598,7 @@ function InvoicesContent() {
             style={{ width: 180 }}
             value={paymentStatus ?? ""}
             onChange={(val) => {
-              setPaymentStatus(val !== "" ? val : null);
+              setPaymentStatus(val !== "" && val !== null && val !== undefined ? Number(val) : null);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             options={STATUS_OPTIONS}
