@@ -78,7 +78,7 @@ function InvoicesContent() {
     return invoiceService.getAll(params);
   }, [pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode]);
 
-  const { data, isLoading } = useSWR(
+  const { data, isLoading, mutate } = useSWR(
     yearMonth ? ["invoices", pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode] : null,
     fetcher
   );
