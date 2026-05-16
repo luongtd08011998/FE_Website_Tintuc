@@ -6,6 +6,8 @@ import { Box, Typography, Paper, TextField, InputAdornment, Button } from "@mui/
 import SearchIcon from "@mui/icons-material/Search";
 import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import DownloadIcon from "@mui/icons-material/Download";
+import WaterDropIcon from "@mui/icons-material/WaterDrop";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import { Table, DatePicker, Select, Tag, Modal, message, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
@@ -14,7 +16,7 @@ import { invoiceService } from "@/services/invoice";
 import type { AdminInvoice } from "@/types";
 
 const STATUS_OPTIONS = [
-  { label: "Tất cả trạng thái", value: null },
+  { label: "Tất cả trạng thái", value: "" },
   { label: "Chưa thanh toán", value: 1 },
   { label: "Đã thanh toán", value: 2 },
 ];
@@ -37,6 +39,14 @@ function InvoicesContent() {
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [isSendingOverdue, setIsSendingOverdue] = useState(false);
+  const [waterCutoffModal, setWaterCutoffModal] = useState<{ open: boolean; record: AdminInvoice | null }>({
+    open: false,
+    record: null,
+  });
+  const [cutoffEmployeeName, setCutoffEmployeeName] = useState("");
+  const [cutoffEmployeePhone, setCutoffEmployeePhone] = useState("");
+  const [isSendingCutoff, setIsSendingCutoff] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -248,6 +258,119 @@ function InvoicesContent() {
     });
   };
 
+  // ── Quá hạn thanh toán ──
+  const handleSendOverdueAll = () => {
+    if (!yearMonth) return;
+    modal.confirm({
+      title: "Gửi thông báo quá hạn toàn bộ",
+      content: `Gửi thông báo quá hạn thanh toán cho TẤT CẢ khách hàng chưa thanh toán trong kỳ ${formatYearMonth(yearMonth)}?`,
+      okText: "Gửi ngay",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          setIsSendingOverdue(true);
+          const res = await invoiceService.sendOverdueReminder(yearMonth);
+          if (res.data.data) {
+            appMessage.success(`Gửi thành công: ${res.data.data.sentCount} thông báo, bỏ qua ${res.data.data.skipCount}.`);
+          } else {
+            appMessage.success("Đã hoàn tất gửi thông báo quá hạn.");
+          }
+        } catch (error: any) {
+          appMessage.error("Có lỗi xảy ra: " + error.message);
+        } finally {
+          setIsSendingOverdue(false);
+        }
+      },
+    });
+  };
+
+  const handleSendOverdueSelected = () => {
+    if (selectedRowKeys.length === 0) return;
+    modal.confirm({
+      title: "Gửi thông báo quá hạn mục đã chọn",
+      content: `Gửi thông báo quá hạn cho ${selectedRowKeys.length} khách hàng đã chọn?`,
+      okText: "Gửi ngay",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          setIsSendingOverdue(true);
+          let successCount = 0;
+          for (const id of selectedRowKeys) {
+            const invoice = invoices.find((inv: AdminInvoice) => inv.id === id);
+            if (invoice) {
+              try {
+                const res = await invoiceService.sendOverdueReminder(invoice.yearMonth, invoice.id);
+                if (res.data.data && res.data.data.sentCount > 0) successCount++;
+              } catch (e) {
+                console.error(`Lỗi gửi quá hạn cho ID ${String(id)}`, e);
+              }
+            }
+          }
+          appMessage.success(`Đã gửi thành công ${successCount}/${selectedRowKeys.length} thông báo quá hạn.`);
+          setSelectedRowKeys([]);
+        } catch (error: any) {
+          appMessage.error("Có lỗi xảy ra khi gửi thông báo.");
+        } finally {
+          setIsSendingOverdue(false);
+        }
+      },
+    });
+  };
+
+  const handleSendOverdueSingle = (record: AdminInvoice) => {
+    modal.confirm({
+      title: "Gửi thông báo quá hạn",
+      content: `Gửi thông báo quá hạn thanh toán cho khách hàng ${record.customerName}?`,
+      okText: "Gửi ngay",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          setIsSendingOverdue(true);
+          const res = await invoiceService.sendOverdueReminder(record.yearMonth, record.id);
+          if (res.data.data && res.data.data.sentCount > 0) {
+            appMessage.success(`Đã gửi thông báo quá hạn cho ${record.customerName}.`);
+          } else {
+            appMessage.info("Không gửi được hoặc khách hàng đã thanh toán.");
+          }
+        } catch (error: any) {
+          appMessage.error("Có lỗi xảy ra: " + error.message);
+        } finally {
+          setIsSendingOverdue(false);
+        }
+      },
+    });
+  };
+
+  // ── Cúp nước ──
+  const handleOpenWaterCutoff = (record: AdminInvoice) => {
+    setCutoffEmployeeName("");
+    setCutoffEmployeePhone("");
+    setWaterCutoffModal({ open: true, record });
+  };
+
+  const handleSendWaterCutoff = async () => {
+    const record = waterCutoffModal.record;
+    if (!record) return;
+    try {
+      setIsSendingCutoff(true);
+      const res = await invoiceService.sendWaterCutoff(
+        record.id,
+        cutoffEmployeeName.trim() || undefined,
+        cutoffEmployeePhone.trim() || undefined,
+      );
+      if (res.data.data) {
+        appMessage.success(`Đã gửi thông báo cúp nước cho ${record.customerName}.`);
+      } else {
+        appMessage.info("Không gửi được thông báo cúp nước.");
+      }
+    } catch (error: any) {
+      appMessage.error("Có lỗi xảy ra: " + error.message);
+    } finally {
+      setIsSendingCutoff(false);
+      setWaterCutoffModal({ open: false, record: null });
+    }
+  };
+
 
   const rowSelection = {
     selectedRowKeys,
@@ -314,14 +437,14 @@ function InvoicesContent() {
     {
       title: "Hành động",
       key: "action",
-      width: 140,
+      width: 300,
       render: (_: any, record: AdminInvoice) => {
-        // Sử dụng flag hasReplacement trả về từ Backend
         const hasReplacement = record.hasReplacement;
-        
-        if (record.paymentStatus === 1 && !hasReplacement) {
+        const unpaid = record.paymentStatus === 1 && !hasReplacement;
+
+        if (unpaid) {
           return (
-            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexWrap: "wrap" }}>
               <Button
                 variant="outlined"
                 color={record.isReminded ? "success" : "warning"}
@@ -332,9 +455,26 @@ function InvoicesContent() {
               >
                 {record.isReminded ? "Nhắc lại" : "Nhắc nợ"}
               </Button>
-              {record.isReminded && (
-                <Tag color="blue">Đã nhắc</Tag>
-              )}
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                startIcon={<WarningAmberIcon />}
+                onClick={() => handleSendOverdueSingle(record)}
+                disabled={isSendingOverdue}
+              >
+                Quá hạn
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="small"
+                startIcon={<WaterDropIcon />}
+                onClick={() => handleOpenWaterCutoff(record)}
+                disabled={isSendingCutoff}
+              >
+                Cúp nước
+              </Button>
             </Box>
           );
         }
@@ -356,15 +496,26 @@ function InvoicesContent() {
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
           {selectedRowKeys.length > 0 && (
-            <Button
-              variant="contained"
-              color="info"
-              startIcon={<NotificationsActiveIcon />}
-              onClick={handleSelectedReminder}
-              disabled={isSendingReminder}
-            >
-              Nhắc nợ ({selectedRowKeys.length})
-            </Button>
+            <>
+              <Button
+                variant="contained"
+                color="info"
+                startIcon={<NotificationsActiveIcon />}
+                onClick={handleSelectedReminder}
+                disabled={isSendingReminder}
+              >
+                Nhắc nợ ({selectedRowKeys.length})
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<WarningAmberIcon />}
+                onClick={handleSendOverdueSelected}
+                disabled={isSendingOverdue}
+              >
+                Quá hạn ({selectedRowKeys.length})
+              </Button>
+            </>
           )}
           {yearMonth && (
             <Button
@@ -378,15 +529,26 @@ function InvoicesContent() {
             </Button>
           )}
           {paymentStatus === 1 && yearMonth && (
-             <Button
-               variant="contained"
-               color="warning"
-               startIcon={<NotificationsActiveIcon />}
-               onClick={handleSendReminder}
-               disabled={isSendingReminder}
-             >
-               Nhắc nợ toàn bộ
-             </Button>
+             <>
+               <Button
+                 variant="contained"
+                 color="warning"
+                 startIcon={<NotificationsActiveIcon />}
+                 onClick={handleSendReminder}
+                 disabled={isSendingReminder}
+               >
+                 Nhắc nợ toàn bộ
+               </Button>
+               <Button
+                 variant="contained"
+                 color="error"
+                 startIcon={<WarningAmberIcon />}
+                 onClick={handleSendOverdueAll}
+                 disabled={isSendingOverdue}
+               >
+                 Quá hạn toàn bộ
+               </Button>
+             </>
           )}
         </Box>
       </Box>
@@ -434,9 +596,9 @@ function InvoicesContent() {
             placeholder="Trạng thái thanh toán"
             allowClear
             style={{ width: 180 }}
-            value={paymentStatus}
+            value={paymentStatus ?? ""}
             onChange={(val) => {
-              setPaymentStatus(val ?? null);
+              setPaymentStatus(val !== "" ? val : null);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             options={STATUS_OPTIONS}
@@ -446,13 +608,13 @@ function InvoicesContent() {
             placeholder="Trạng thái nhắc nợ"
             allowClear
             style={{ width: 180 }}
-            value={remindStatus}
+            value={remindStatus ?? ""}
             onChange={(val) => {
-              setRemindStatus(val ?? null);
+              setRemindStatus(val !== "" ? val : null);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             options={[
-              { label: "Tất cả nhắc nợ", value: null },
+              { label: "Tất cả nhắc nợ", value: "" },
               { label: "Đã nhắc nợ", value: 1 },
               { label: "Chưa nhắc nợ", value: 0 },
             ]}
@@ -486,6 +648,42 @@ function InvoicesContent() {
           />
         )}
       </Paper>
+
+      {/* Modal cúp nước */}
+      <Modal
+        open={waterCutoffModal.open}
+        title={`Gửi thông báo cúp nước - ${waterCutoffModal.record?.customerName ?? ""}`}
+        okText="Gửi ngay"
+        cancelText="Hủy"
+        onOk={handleSendWaterCutoff}
+        onCancel={() => setWaterCutoffModal({ open: false, record: null })}
+        confirmLoading={isSendingCutoff}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            Thông báo sẽ được gửi cho khách hàng <strong>{waterCutoffModal.record?.customerName}</strong> (Mã KH: {waterCutoffModal.record?.digiCode}).
+          </Typography>
+          <TextField
+            label="Tên nhân viên thực hiện"
+            size="small"
+            value={cutoffEmployeeName}
+            onChange={(e) => setCutoffEmployeeName(e.target.value)}
+            placeholder="Bỏ qua để dùng mặc định"
+            fullWidth
+          />
+          <TextField
+            label="SĐT nhân viên"
+            size="small"
+            value={cutoffEmployeePhone}
+            onChange={(e) => setCutoffEmployeePhone(e.target.value)}
+            placeholder="Bỏ qua để dùng mặc định"
+            fullWidth
+          />
+          <Typography variant="caption" color="text.secondary">
+            Tên và SĐT nhân viên sẽ tự động được ẩn khi gửi cho khách hàng (VD: Nguyễn Thị Thu → N*** T*** T***).
+          </Typography>
+        </Box>
+      </Modal>
     </Box>
   );
 }
