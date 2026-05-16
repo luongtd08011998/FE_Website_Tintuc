@@ -610,7 +610,7 @@ function InvoicesContent() {
             style={{ width: 180 }}
             value={remindStatus ?? ""}
             onChange={(val) => {
-              setRemindStatus(val !== "" ? val : null);
+              setRemindStatus(val !== "" && val !== null && val !== undefined ? Number(val) : null);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             options={[
