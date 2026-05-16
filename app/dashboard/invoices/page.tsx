@@ -371,6 +371,62 @@ function InvoicesContent() {
     }
   };
 
+  const handleSendWaterCutoffSelected = async () => {
+    const selected = invoices.filter((inv) => selectedRowKeys.includes(inv.id));
+    if (selected.length === 0) return;
+
+    Modal.confirm({
+      title: `Gửi thông báo cúp nước cho ${selected.length} hóa đơn đã chọn?`,
+      content: (
+        <Box sx={{ mt: 2 }}>
+          <Box sx={{ mb: 2 }}>
+            <TextField
+              size="small"
+              label="Tên nhân viên"
+              value={cutoffEmployeeName}
+              onChange={(e) => setCutoffEmployeeName(e.target.value)}
+              fullWidth
+              sx={{ mb: 1 }}
+            />
+            <TextField
+              size="small"
+              label="SĐT nhân viên"
+              value={cutoffEmployeePhone}
+              onChange={(e) => setCutoffEmployeePhone(e.target.value)}
+              fullWidth
+            />
+          </Box>
+        </Box>
+      ),
+      onOk: async () => {
+        setIsSendingCutoff(true);
+        let sent = 0;
+        let failed = 0;
+        for (const inv of selected) {
+          try {
+            const res = await invoiceService.sendWaterCutoff(
+              inv.id,
+              cutoffEmployeeName.trim() || undefined,
+              cutoffEmployeePhone.trim() || undefined,
+            );
+            if (res.data.data) sent++;
+            else failed++;
+          } catch {
+            failed++;
+          }
+        }
+        setIsSendingCutoff(false);
+        setSelectedRowKeys([]);
+        if (failed === 0) {
+          appMessage.success(`Đã gửi cúp nước cho ${sent} hóa đơn.`);
+        } else {
+          appMessage.warning(`Thành công: ${sent}, thất bại: ${failed}.`);
+        }
+        mutate();
+      },
+    });
+  };
+
 
   const rowSelection = {
     selectedRowKeys,
@@ -443,31 +499,55 @@ function InvoicesContent() {
         const unpaid = record.paymentStatus === 1 && !hasReplacement;
 
         if (unpaid) {
-          return (
-            <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexWrap: "wrap" }}>
+          // Theo cấp: tùy remindStatus chỉ hiện nút hành động tiếp theo
+          if (remindStatus === 0) {
+            // Chưa nhắc nợ → chỉ hiện nút Nhắc nợ
+            return (
               <Button
                 variant="outlined"
-                color={record.isReminded ? "success" : "warning"}
+                color="warning"
                 size="small"
                 startIcon={<NotificationsActiveIcon />}
                 onClick={() => handleSendSingleReminder(record)}
                 disabled={isSendingReminder}
               >
-                {record.isReminded ? "Nhắc lại" : "Nhắc nợ"}
+                Nhắc nợ
               </Button>
+            );
+          }
+          if (remindStatus === 1) {
+            // Đã nhắc nợ → Nhắc lại + Quá hạn
+            return (
+              <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexWrap: "wrap" }}>
+                <Button
+                  variant="outlined"
+                  color="success"
+                  size="small"
+                  startIcon={<NotificationsActiveIcon />}
+                  onClick={() => handleSendSingleReminder(record)}
+                  disabled={isSendingReminder}
+                >
+                  Nhắc lại
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  size="small"
+                  startIcon={<WarningAmberIcon />}
+                  onClick={() => handleSendOverdueSingle(record)}
+                  disabled={isSendingOverdue}
+                >
+                  Quá hạn
+                </Button>
+              </Box>
+            );
+          }
+          if (remindStatus === 2) {
+            // Quá hạn → chỉ hiện nút Cúp nước
+            return (
               <Button
                 variant="outlined"
                 color="error"
-                size="small"
-                startIcon={<WarningAmberIcon />}
-                onClick={() => handleSendOverdueSingle(record)}
-                disabled={isSendingOverdue}
-              >
-                Quá hạn
-              </Button>
-              <Button
-                variant="outlined"
-                color="secondary"
                 size="small"
                 startIcon={<WaterDropIcon />}
                 onClick={() => handleOpenWaterCutoff(record)}
@@ -475,7 +555,72 @@ function InvoicesContent() {
               >
                 Cúp nước
               </Button>
-            </Box>
+            );
+          }
+          // remindStatus === 3 (Cúp nước) → không hiện nút
+          if (remindStatus === 3) {
+            return null;
+          }
+
+          // remindStatus === null (Tất cả): hiện nút theo trạng thái thực tế của hóa đơn
+          if (record.isWaterCutoff) {
+            // Đã cúp nước → không hiện nút
+            return null;
+          }
+          if (record.isOverdue) {
+            // Đã quá hạn → hiện nút Cúp nước
+            return (
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                startIcon={<WaterDropIcon />}
+                onClick={() => handleOpenWaterCutoff(record)}
+                disabled={isSendingCutoff}
+              >
+                Cúp nước
+              </Button>
+            );
+          }
+          if (record.isReminded) {
+            // Đã nhắc nợ → hiện nút Nhắc lại + Quá hạn
+            return (
+              <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexWrap: "wrap" }}>
+                <Button
+                  variant="outlined"
+                  color="success"
+                  size="small"
+                  startIcon={<NotificationsActiveIcon />}
+                  onClick={() => handleSendSingleReminder(record)}
+                  disabled={isSendingReminder}
+                >
+                  Nhắc lại
+                </Button>
+                <Button
+                  variant="outlined"
+                  color="error"
+                  size="small"
+                  startIcon={<WarningAmberIcon />}
+                  onClick={() => handleSendOverdueSingle(record)}
+                  disabled={isSendingOverdue}
+                >
+                  Quá hạn
+                </Button>
+              </Box>
+            );
+          }
+          // Chưa nhắc nợ → hiện nút Nhắc nợ
+          return (
+            <Button
+              variant="outlined"
+              color="warning"
+              size="small"
+              startIcon={<NotificationsActiveIcon />}
+              onClick={() => handleSendSingleReminder(record)}
+              disabled={isSendingReminder}
+            >
+              Nhắc nợ
+            </Button>
           );
         }
 
@@ -497,24 +642,61 @@ function InvoicesContent() {
         <Box sx={{ display: "flex", gap: 1 }}>
           {selectedRowKeys.length > 0 && (
             <>
-              <Button
-                variant="contained"
-                color="info"
-                startIcon={<NotificationsActiveIcon />}
-                onClick={handleSelectedReminder}
-                disabled={isSendingReminder}
-              >
-                Nhắc nợ ({selectedRowKeys.length})
-              </Button>
-              <Button
-                variant="contained"
-                color="error"
-                startIcon={<WarningAmberIcon />}
-                onClick={handleSendOverdueSelected}
-                disabled={isSendingOverdue}
-              >
-                Quá hạn ({selectedRowKeys.length})
-              </Button>
+              {(remindStatus === null || remindStatus === 0) && (
+                <Button
+                  variant="contained"
+                  color="info"
+                  startIcon={<NotificationsActiveIcon />}
+                  onClick={handleSelectedReminder}
+                  disabled={isSendingReminder}
+                >
+                  Nhắc nợ ({selectedRowKeys.length})
+                </Button>
+              )}
+              {remindStatus === 1 && (
+                <>
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<NotificationsActiveIcon />}
+                    onClick={handleSelectedReminder}
+                    disabled={isSendingReminder}
+                  >
+                    Nhắc lại ({selectedRowKeys.length})
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    startIcon={<WarningAmberIcon />}
+                    onClick={handleSendOverdueSelected}
+                    disabled={isSendingOverdue}
+                  >
+                    Quá hạn ({selectedRowKeys.length})
+                  </Button>
+                </>
+              )}
+              {(remindStatus === null) && (
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<WarningAmberIcon />}
+                  onClick={handleSendOverdueSelected}
+                  disabled={isSendingOverdue}
+                >
+                  Quá hạn ({selectedRowKeys.length})
+                </Button>
+              )}
+              {remindStatus === 2 && (
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<WaterDropIcon />}
+                  onClick={handleSendWaterCutoffSelected}
+                  disabled={isSendingCutoff}
+                >
+                  Cúp nước ({selectedRowKeys.length})
+                </Button>
+              )}
             </>
           )}
           {yearMonth && (
@@ -528,7 +710,7 @@ function InvoicesContent() {
               {isExporting ? "Đang xuất..." : "Xuất Excel"}
             </Button>
           )}
-          {paymentStatus === 1 && yearMonth && (
+          {paymentStatus === 1 && yearMonth && remindStatus !== 2 && remindStatus !== 3 && (
              <>
                <Button
                  variant="contained"
@@ -537,17 +719,19 @@ function InvoicesContent() {
                  onClick={handleSendReminder}
                  disabled={isSendingReminder}
                >
-                 Nhắc nợ toàn bộ
+                 {remindStatus === 1 ? "Nhắc lại toàn bộ" : "Nhắc nợ toàn bộ"}
                </Button>
-               <Button
-                 variant="contained"
-                 color="error"
-                 startIcon={<WarningAmberIcon />}
-                 onClick={handleSendOverdueAll}
-                 disabled={isSendingOverdue}
-               >
-                 Quá hạn toàn bộ
-               </Button>
+               {(remindStatus === null || remindStatus === 1) && (
+                 <Button
+                   variant="contained"
+                   color="error"
+                   startIcon={<WarningAmberIcon />}
+                   onClick={handleSendOverdueAll}
+                   disabled={isSendingOverdue}
+                 >
+                   Quá hạn toàn bộ
+                 </Button>
+               )}
              </>
           )}
         </Box>
@@ -617,6 +801,8 @@ function InvoicesContent() {
               { label: "Tất cả nhắc nợ", value: "" },
               { label: "Đã nhắc nợ", value: 1 },
               { label: "Chưa nhắc nợ", value: 0 },
+              { label: "Nhắc nợ quá hạn", value: 2 },
+              { label: "Cúp nước", value: 3 },
             ]}
           />
         </Box>
