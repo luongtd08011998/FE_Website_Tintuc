@@ -437,6 +437,12 @@ export interface MediaParams {
 
 // ─── Invoice ──────────────────────────────────────────────────────────────────
 
+export interface Road {
+  id: number;
+  name: string;
+  type: number;
+}
+
 export interface AdminInvoice {
   id: number;
   digiCode: string;
@@ -449,6 +455,10 @@ export interface AdminInvoice {
   isOverdue?: boolean;
   isWaterCutoff?: boolean;
   hasReplacement?: boolean;
+  fkey: string | null;
+  qrUrl: string | null;
+  blankNo: string | null;
+  roadId: number | null;
 }
 
 export interface AdminInvoiceParams {
@@ -459,4 +469,5 @@ export interface AdminInvoiceParams {
   customerName?: string;
   digiCode?: string;
   remindStatus?: number;
+  roadId?: number;
 }

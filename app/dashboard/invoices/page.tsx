@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense, useMemo } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Box, Typography, Paper, TextField, InputAdornment, Button } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
@@ -8,12 +8,14 @@ import NotificationsActiveIcon from "@mui/icons-material/NotificationsActive";
 import DownloadIcon from "@mui/icons-material/Download";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import QrCodeIcon from "@mui/icons-material/QrCode";
 import { Table, DatePicker, Select, Tag, Modal, message, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
 import dayjs from "dayjs";
 import { invoiceService } from "@/services/invoice";
-import type { AdminInvoice } from "@/types";
+import { roadService } from "@/services/road";
+import type { AdminInvoice, Road } from "@/types";
 
 const STATUS_OPTIONS = [
   { label: "Tất cả trạng thái", value: "" },
@@ -35,6 +37,34 @@ function InvoicesContent() {
     customerName: "",
     digiCode: "",
   });
+  const [roadId, setRoadId] = useState<number | null>(null);
+
+  // Đọc token sau hydration (tránh SSR mismatch với localStorage)
+  const [tokenReady, setTokenReady] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined" && !!localStorage.getItem("accessToken")) {
+      setTokenReady(true);
+    }
+  }, []);
+
+  // Fetch danh sách tuyến đường cho dropdown bộ lọc — chỉ khi đã có token
+  const { data: roadsData, error: roadsError } = useSWR(
+    tokenReady ? "roads" : null,
+    async () => {
+      const res = await roadService.getAll();
+      return res.data.data;
+    },
+    { revalidateOnFocus: false }
+  );
+  if (roadsError) console.error("[Roads] Lỗi fetch tuyến đường:", roadsError);
+  const roads: Road[] = roadsData ?? [];
+
+  // Map roadId → roadName để join nhanh khi render bảng
+  const roadMap = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const r of roads) map.set(r.id, r.name);
+    return map;
+  }, [roads]);
 
   const [isSendingReminder, setIsSendingReminder] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -47,6 +77,11 @@ function InvoicesContent() {
   const [cutoffEmployeeName, setCutoffEmployeeName] = useState("");
   const [cutoffEmployeePhone, setCutoffEmployeePhone] = useState("");
   const [isSendingCutoff, setIsSendingCutoff] = useState(false);
+  const [qrModal, setQrModal] = useState<{ open: boolean; url: string | null; customerName: string }>({
+    open: false,
+    url: null,
+    customerName: "",
+  });
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -62,7 +97,7 @@ function InvoicesContent() {
   // Reset selection khi đổi trang hoặc filter
   useEffect(() => {
     setSelectedRowKeys([]);
-  }, [pagination.page, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode]);
+  }, [pagination.page, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode, roadId]);
 
   const fetcher = useCallback(() => {
     const params: Record<string, unknown> = {
@@ -74,12 +109,13 @@ function InvoicesContent() {
     if (remindStatus !== null) params.remindStatus = remindStatus;
     if (debounced.customerName) params.customerName = debounced.customerName;
     if (debounced.digiCode) params.digiCode = debounced.digiCode;
+    if (roadId !== null) params.roadId = roadId;
     
     return invoiceService.getAll(params);
-  }, [pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode]);
+  }, [pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode, roadId]);
 
   const { data, isLoading, mutate } = useSWR(
-    yearMonth ? ["invoices", pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode] : null,
+    yearMonth ? ["invoices", pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode, roadId] : null,
     fetcher
   );
 
@@ -187,6 +223,7 @@ function InvoicesContent() {
       if (remindStatus !== null) params.remindStatus = remindStatus;
       if (debounced.customerName) params.customerName = debounced.customerName;
       if (debounced.digiCode) params.digiCode = debounced.digiCode;
+      if (roadId !== null) params.roadId = roadId;
 
       const res = await invoiceService.getAll(params);
       const rows: AdminInvoice[] = res.data.data.result ?? [];
@@ -198,13 +235,14 @@ function InvoicesContent() {
 
       // Tạo nội dung CSV
       const PAYMENT_LABEL: Record<number, string> = { 1: "Chưa thanh toán", 2: "Đã thanh toán" };
-      const headers = ["STT", "Mã KH", "Tên khách hàng", "Kỳ hóa đơn", "Mã hóa đơn", "Tổng tiền (VNĐ)", "Trạng thái", "Nhắc nợ"];
+      const headers = ["STT", "Mã KH", "Tên khách hàng", "Kỳ hóa đơn", "Số hóa đơn", "Tuyến đường", "Tổng tiền (VNĐ)", "Trạng thái", "Nhắc nợ"];
       const csvData = rows.map((row, idx) => [
         idx + 1,
         row.digiCode,
         row.customerName,
         `${String(row.yearMonth).substring(4, 6)}/${String(row.yearMonth).substring(0, 4)}`,
-        row.invoiceNo ?? "",
+        row.blankNo ?? "",
+        row.roadId ? (roadMap.get(row.roadId) ?? "") : "",
         row.totalAmount,
         PAYMENT_LABEL[row.paymentStatus] ?? "",
         row.isReminded ? "Đã nhắc" : "Chưa nhắc",
@@ -466,12 +504,13 @@ function InvoicesContent() {
       render: (v: string) => formatYearMonth(v),
     },
     {
-      title: "Mã hóa đơn",
-      dataIndex: "invoiceNo",
-      key: "invoiceNo",
+      title: "Số hóa đơn",
+      dataIndex: "blankNo",
+      key: "blankNo",
       width: 180,
-      render: (v: string) => v || <Typography variant="caption" color="text.secondary">Chưa có / Đang lấy</Typography>,
+      render: (v: string | null) => v || <Typography variant="caption" color="text.secondary">—</Typography>,
     },
+
     {
       title: "Tổng tiền",
       dataIndex: "totalAmount",
@@ -498,12 +537,26 @@ function InvoicesContent() {
         const hasReplacement = record.hasReplacement;
         const unpaid = record.paymentStatus === 1 && !hasReplacement;
 
+        const qrButton = record.qrUrl ? (
+          <Button
+            key="qr"
+            variant="outlined"
+            color="info"
+            size="small"
+            startIcon={<QrCodeIcon />}
+            onClick={() => setQrModal({ open: true, url: record.qrUrl, customerName: record.customerName })}
+          >
+            Xem QR
+          </Button>
+        ) : null;
+
+        let actions: React.ReactNode = null;
+
         if (unpaid) {
-          // Theo cấp: tùy remindStatus chỉ hiện nút hành động tiếp theo
           if (remindStatus === 0) {
-            // Chưa nhắc nợ → chỉ hiện nút Nhắc nợ
-            return (
+            actions = (
               <Button
+                key="remind"
                 variant="outlined"
                 color="warning"
                 size="small"
@@ -514,12 +567,11 @@ function InvoicesContent() {
                 Nhắc nợ
               </Button>
             );
-          }
-          if (remindStatus === 1) {
-            // Đã nhắc nợ → Nhắc lại + Quá hạn
-            return (
-              <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexWrap: "wrap" }}>
+          } else if (remindStatus === 1) {
+            actions = (
+              <>
                 <Button
+                  key="remind_again"
                   variant="outlined"
                   color="success"
                   size="small"
@@ -530,6 +582,7 @@ function InvoicesContent() {
                   Nhắc lại
                 </Button>
                 <Button
+                  key="overdue"
                   variant="outlined"
                   color="error"
                   size="small"
@@ -539,13 +592,12 @@ function InvoicesContent() {
                 >
                   Quá hạn
                 </Button>
-              </Box>
+              </>
             );
-          }
-          if (remindStatus === 2) {
-            // Quá hạn → chỉ hiện nút Cúp nước
-            return (
+          } else if (remindStatus === 2) {
+            actions = (
               <Button
+                key="cutoff"
                 variant="outlined"
                 color="error"
                 size="small"
@@ -556,79 +608,78 @@ function InvoicesContent() {
                 Cúp nước
               </Button>
             );
-          }
-          // remindStatus === 3 (Cúp nước) → không hiện nút
-          if (remindStatus === 3) {
-            return null;
-          }
-
-          // remindStatus === null (Tất cả): hiện nút theo trạng thái thực tế của hóa đơn
-          if (record.isWaterCutoff) {
-            // Đã cúp nước → không hiện nút
-            return null;
-          }
-          if (record.isOverdue) {
-            // Đã quá hạn → hiện nút Cúp nước
-            return (
-              <Button
-                variant="outlined"
-                color="error"
-                size="small"
-                startIcon={<WaterDropIcon />}
-                onClick={() => handleOpenWaterCutoff(record)}
-                disabled={isSendingCutoff}
-              >
-                Cúp nước
-              </Button>
-            );
-          }
-          if (record.isReminded) {
-            // Đã nhắc nợ → hiện nút Nhắc lại + Quá hạn
-            return (
-              <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexWrap: "wrap" }}>
+          } else if (remindStatus === null) {
+            if (record.isWaterCutoff) {
+              actions = null;
+            } else if (record.isOverdue) {
+              actions = (
                 <Button
+                  key="cutoff"
                   variant="outlined"
-                  color="success"
+                  color="error"
+                  size="small"
+                  startIcon={<WaterDropIcon />}
+                  onClick={() => handleOpenWaterCutoff(record)}
+                  disabled={isSendingCutoff}
+                >
+                  Cúp nước
+                </Button>
+              );
+            } else if (record.isReminded) {
+              actions = (
+                <>
+                  <Button
+                    key="remind_again"
+                    variant="outlined"
+                    color="success"
+                    size="small"
+                    startIcon={<NotificationsActiveIcon />}
+                    onClick={() => handleSendSingleReminder(record)}
+                    disabled={isSendingReminder}
+                  >
+                    Nhắc lại
+                  </Button>
+                  <Button
+                    key="overdue"
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    startIcon={<WarningAmberIcon />}
+                    onClick={() => handleSendOverdueSingle(record)}
+                    disabled={isSendingOverdue}
+                  >
+                    Quá hạn
+                  </Button>
+                </>
+              );
+            } else {
+              actions = (
+                <Button
+                  key="remind"
+                  variant="outlined"
+                  color="warning"
                   size="small"
                   startIcon={<NotificationsActiveIcon />}
                   onClick={() => handleSendSingleReminder(record)}
                   disabled={isSendingReminder}
                 >
-                  Nhắc lại
+                  Nhắc nợ
                 </Button>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  startIcon={<WarningAmberIcon />}
-                  onClick={() => handleSendOverdueSingle(record)}
-                  disabled={isSendingOverdue}
-                >
-                  Quá hạn
-                </Button>
-              </Box>
-            );
+              );
+            }
           }
-          // Chưa nhắc nợ → hiện nút Nhắc nợ
-          return (
-            <Button
-              variant="outlined"
-              color="warning"
-              size="small"
-              startIcon={<NotificationsActiveIcon />}
-              onClick={() => handleSendSingleReminder(record)}
-              disabled={isSendingReminder}
-            >
-              Nhắc nợ
-            </Button>
-          );
+        } else if (hasReplacement) {
+           actions = <Tag color="default">Hóa đơn thay thế</Tag>;
         }
 
-        if (hasReplacement) {
-           return <Tag color="default">Hóa đơn thay thế</Tag>;
-        }
+        if (!qrButton && !actions) return null;
 
-        return null;
+        return (
+          <Box sx={{ display: "flex", gap: 0.5, alignItems: "center", flexWrap: "wrap" }}>
+            {qrButton}
+            {actions}
+          </Box>
+        );
       },
     },
   ];
@@ -805,6 +856,24 @@ function InvoicesContent() {
               { label: "Cúp nước", value: 3 },
             ]}
           />
+
+          <Select
+            placeholder="Tuyến đường"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 240 }}
+            popupMatchSelectWidth={false}
+            value={roadId ?? undefined}
+            onChange={(val) => {
+              setRoadId(val !== undefined && val !== null ? Number(val) : null);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            options={roads.map((r) => ({
+              label: `${String(r.type).padStart(3, "0")} - ${r.name}`,
+              value: r.id,
+            }))}
+          />
         </Box>
 
         {!yearMonth ? (
@@ -868,6 +937,31 @@ function InvoicesContent() {
           <Typography variant="caption" color="text.secondary">
             Tên và SĐT nhân viên sẽ tự động được ẩn khi gửi cho khách hàng (VD: Nguyễn Thị Thu → N*** T*** T***).
           </Typography>
+        </Box>
+      </Modal>
+
+      {/* Modal Xem QR */}
+      <Modal
+        open={qrModal.open}
+        title={`Mã QR thanh toán - ${qrModal.customerName}`}
+        footer={null}
+        onCancel={() => setQrModal({ open: false, url: null, customerName: "" })}
+      >
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", p: 2 }}>
+          {qrModal.url ? (
+            <>
+              <img 
+                src={qrModal.url} 
+                alt={`Mã QR thanh toán cho KH ${qrModal.customerName}`} 
+                style={{ width: '100%', maxWidth: '300px', height: 'auto', objectFit: 'contain' }}
+              />
+              <Typography variant="body1" sx={{ mt: 2, fontWeight: 500 }}>
+                Quét mã để thanh toán
+              </Typography>
+            </>
+          ) : (
+            <Typography color="text.secondary">Không có mã QR</Typography>
+          )}
         </Box>
       </Modal>
     </Box>

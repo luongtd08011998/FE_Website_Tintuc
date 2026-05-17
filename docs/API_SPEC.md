@@ -1183,3 +1183,73 @@ Upload a single file to the server. The returned `fileName` is then used to upda
 | DELETE | /permissions/{id} | 🔒 | Delete permission |
 | POST | /files | 🔒 | Upload file (avatar / logo) |
 | GET | /dashboard | 🔒 | Dashboard summary counts |
+| GET | /admin/roads | 🔒 | Danh sách tuyến đường (dropdown) |
+| GET | /admin/invoices | 🔒 | Danh sách hóa đơn admin (có lọc) |
+| POST | /admin/invoices/send-debt-reminder | 🔒 | Gửi nhắc nợ |
+| POST | /admin/invoices/send-overdue-reminder | 🔒 | Gửi thông báo quá hạn |
+| POST | /admin/invoices/send-water-cutoff | 🔒 | Gửi thông báo cúp nước |
+
+---
+
+## 12. Invoice Admin
+
+### GET /admin/roads 🔒
+
+Lấy danh sách tuyến đường để hiển thị Dropdown bộ lọc hóa đơn.
+
+**Success Response (200):**
+```json
+{
+  "statusCode": 200,
+  "data": [
+    { "id": 2, "name": "Khu 25 HA", "type": 9 },
+    { "id": 22, "name": "Tuyến 26", "type": 21 }
+  ],
+  "message": "Lấy danh sách tuyến đường thành công",
+  "timestamp": "..."
+}
+```
+
+> Không phân trang. `data` là mảng trực tiếp.
+
+---
+
+### GET /admin/invoices 🔒
+
+Lấy danh sách hóa đơn có phân trang và bộ lọc.
+
+**Query Parameters:**
+| Param | Type | Mô tả |
+|-------|------|-------|
+| page | int | Trang (1-based) |
+| size | int | Kích thước trang |
+| yearMonth | string | Kỳ hóa đơn, định dạng YYYYMM — **bắt buộc** |
+| paymentStatus | int | 1=Chưa TT, 2=Đã TT |
+| remindStatus | int | 0=Chưa nhắc, 1=Đã nhắc, 2=Quá hạn, 3=Cúp nước |
+| customerName | string | Tìm theo tên KH |
+| digiCode | string | Tìm theo mã KH |
+| roadId | int | **[MỚI]** Lọc theo ID tuyến đường (lấy từ `/admin/roads`) |
+
+**Response Item:**
+```json
+{
+  "id": 101,
+  "digiCode": "KH001",
+  "customerName": "Nguyễn Văn A",
+  "totalAmount": 150000,
+  "yearMonth": "202401",
+  "invoiceNo": "INV-001",
+  "paymentStatus": 1,
+  "isReminded": false,
+  "isOverdue": false,
+  "isWaterCutoff": false,
+  "hasReplacement": false,
+  "fkey": "CNTOCTIEN.ABC123",
+  "qrUrl": "https://img.vietqr.io/...",
+  "blankNo": "K25HA-2024-001",
+  "roadId": 2
+}
+```
+
+> **Lưu ý:** `invoiceNo` = `blankNo` (lấy từ DB, không gọi VNPT real-time).
+> `roadName` không trả về trong response — FE tự join từ danh sách `/admin/roads`.
