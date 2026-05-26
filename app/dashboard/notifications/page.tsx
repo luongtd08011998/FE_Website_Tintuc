@@ -87,8 +87,8 @@ function NotificationsContent() {
     return () => clearTimeout(t);
   }, [customerIdSearch]);
 
-  const fromStr = dateRange?.[0]?.startOf("day").toISOString() ?? "";
-  const toStr = dateRange?.[1]?.endOf("day").toISOString() ?? "";
+  const fromStr = dateRange?.[0]?.startOf("day").format("YYYY-MM-DDTHH:mm:ss") ?? "";
+  const toStr = dateRange?.[1]?.endOf("day").format("YYYY-MM-DDTHH:mm:ss") ?? "";
 
   const { data: statsData } = useSWR(
     "notification-statistics",
