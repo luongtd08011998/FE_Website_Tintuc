@@ -183,12 +183,6 @@ function NotificationsContent() {
         (pagination.page - 1) * pagination.size + index + 1,
     },
     {
-      title: "ID",
-      dataIndex: "id",
-      key: "id",
-      width: 70,
-    },
-    {
       title: "Khách hàng",
       key: "customer",
       width: 180,
