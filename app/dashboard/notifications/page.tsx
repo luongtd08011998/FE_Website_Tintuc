@@ -175,6 +175,14 @@ function NotificationsContent() {
 
   const columns = [
     {
+      title: "STT",
+      key: "stt",
+      width: 60,
+      align: "center" as const,
+      render: (_: unknown, __: unknown, index: number) =>
+        (pagination.page - 1) * pagination.size + index + 1,
+    },
+    {
       title: "ID",
       dataIndex: "id",
       key: "id",
