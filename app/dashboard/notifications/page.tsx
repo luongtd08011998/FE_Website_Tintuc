@@ -8,8 +8,17 @@ import {
   TextField,
   InputAdornment,
   Grid,
+  CircularProgress,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import SendIcon from "@mui/icons-material/Send";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import CancelIcon from "@mui/icons-material/Cancel";
+import AccessTimeIcon from "@mui/icons-material/AccessTime";
+import PhonelinkOffIcon from "@mui/icons-material/PhonelinkOff";
+import PlaylistAddCheckIcon from "@mui/icons-material/PlaylistAddCheck";
+import DateRangeIcon from "@mui/icons-material/DateRange";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { Table, Tag, Select, DatePicker, App, Button, Tooltip } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR, { mutate as globalMutate } from "swr";
@@ -98,7 +107,7 @@ function NotificationsContent() {
 
   const fetcher = useCallback(() => {
     const params: Record<string, unknown> = {
-      page: pagination.page - 1,
+      page: pagination.page,
       size: pagination.size,
     };
     if (typeFilter) params.type = typeFilter;
@@ -267,26 +276,54 @@ function NotificationsContent() {
   ];
 
   const statCards = [
-    { label: "Tổng đã gửi", value: stats?.totalSent ?? 0, color: undefined },
     {
-      label: "Đã giao",
-      value: stats?.totalDelivered ?? 0,
-      color: "success.main",
-    },
-    { label: "Thất bại", value: stats?.totalFailed ?? 0, color: "error.main" },
-    { label: "Chờ gửi", value: stats?.totalPending ?? 0, color: "info.main" },
-    {
-      label: "Không có thiết bị",
-      value: stats?.totalNoDevice ?? 0,
-      color: "text.secondary",
+      title: "Tổng đã gửi",
+      value: stats?.totalSent ?? null,
+      icon: <SendIcon />,
+      color: "#1677ff",
     },
     {
-      label: "Một phần",
-      value: stats?.totalPartial ?? 0,
-      color: "warning.main",
+      title: "Đã giao",
+      value: stats?.totalDelivered ?? null,
+      icon: <CheckCircleIcon />,
+      color: "#52c41a",
     },
-    { label: "7 ngày qua", value: stats?.last7Days ?? 0, color: undefined },
-    { label: "30 ngày qua", value: stats?.last30Days ?? 0, color: undefined },
+    {
+      title: "Thất bại",
+      value: stats?.totalFailed ?? null,
+      icon: <CancelIcon />,
+      color: "#ff4d4f",
+    },
+    {
+      title: "Chờ gửi",
+      value: stats?.totalPending ?? null,
+      icon: <AccessTimeIcon />,
+      color: "#1677ff",
+    },
+    {
+      title: "Không có thiết bị",
+      value: stats?.totalNoDevice ?? null,
+      icon: <PhonelinkOffIcon />,
+      color: "#8c8c8c",
+    },
+    {
+      title: "Một phần",
+      value: stats?.totalPartial ?? null,
+      icon: <PlaylistAddCheckIcon />,
+      color: "#fa8c16",
+    },
+    {
+      title: "7 ngày qua",
+      value: stats?.last7Days ?? null,
+      icon: <DateRangeIcon />,
+      color: "#722ed1",
+    },
+    {
+      title: "30 ngày qua",
+      value: stats?.last30Days ?? null,
+      icon: <CalendarMonthIcon />,
+      color: "#13c2c2",
+    },
   ];
 
   return (
@@ -296,20 +333,44 @@ function NotificationsContent() {
       </Typography>
 
       {/* Statistics */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         {statCards.map((card) => (
-          <Grid key={card.label} size={{ xs: 12, sm: 6, md: 3 }}>
-            <Paper sx={{ p: 2 }}>
-              <Typography variant="caption" color="text.secondary">
-                {card.label}
-              </Typography>
-              <Typography
-                variant="h4"
-                fontWeight={700}
-                sx={card.color ? { color: card.color } : undefined}
+          <Grid key={card.title} size={{ xs: 12, sm: 6, md: 3 }}>
+            <Paper
+              sx={{
+                p: 3,
+                display: "flex",
+                alignItems: "center",
+                gap: 2,
+              }}
+            >
+              <Box
+                sx={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 2,
+                  bgcolor: `${card.color}20`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: card.color,
+                  "& svg": { fontSize: 28 },
+                }}
               >
-                {card.value.toLocaleString("vi-VN")}
-              </Typography>
+                {card.icon}
+              </Box>
+              <Box>
+                <Typography variant="body2" color="text.secondary">
+                  {card.title}
+                </Typography>
+                <Typography variant="h5" fontWeight={700}>
+                  {card.value === null ? (
+                    <CircularProgress size={24} />
+                  ) : (
+                    card.value.toLocaleString("vi-VN")
+                  )}
+                </Typography>
+              </Box>
             </Paper>
           </Grid>
         ))}
