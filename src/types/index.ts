@@ -471,3 +471,58 @@ export interface AdminInvoiceParams {
   remindStatus?: number;
   roadId?: number;
 }
+
+// ─── Notification ──────────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | "INVOICE"
+  | "PAYMENT"
+  | "DEBT_REMINDER"
+  | "OVERDUE"
+  | "WATER_CUTOFF"
+  | "FEEDBACK";
+
+export type NotificationDeliveryStatus =
+  | "PENDING"
+  | "DELIVERED"
+  | "FAILED"
+  | "PARTIAL"
+  | "NO_DEVICE";
+
+export interface NotificationItem {
+  id: number;
+  customerId: number;
+  customerName: string;
+  customerDigiCode: string;
+  title: string;
+  type: NotificationType;
+  referenceId: number;
+  isRead: boolean;
+  deliveryStatus: NotificationDeliveryStatus;
+  deliveredAt: string | null;
+  failureReason: string | null;
+  createdAt: string;
+}
+
+export interface NotificationStatistics {
+  totalSent: number;
+  totalDelivered: number;
+  totalFailed: number;
+  totalPending: number;
+  totalNoDevice: number;
+  totalPartial: number;
+  byType: Partial<Record<NotificationType, number>>;
+  byDeliveryStatus: Partial<Record<NotificationDeliveryStatus, number>>;
+  last7Days: number;
+  last30Days: number;
+}
+
+export interface NotificationListParams {
+  type?: NotificationType;
+  deliveryStatus?: NotificationDeliveryStatus;
+  customerId?: number;
+  createdFrom?: string;
+  createdTo?: string;
+  page?: number;
+  size?: number;
+}

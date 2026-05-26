@@ -32,6 +32,7 @@ import ForumIcon from "@mui/icons-material/Forum";
 import LogoutIcon from "@mui/icons-material/Logout";
 import PermMediaIcon from "@mui/icons-material/PermMedia";
 import ReceiptIcon from "@mui/icons-material/Receipt";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 import { useAuthStore } from "@/lib/store";
 import { authService } from "@/services/auth";
 import { getFileUrl } from "@/services/file";
@@ -59,6 +60,7 @@ const navItems = [
   { label: "Thư viện Media", href: "/dashboard/media", icon: <PermMediaIcon /> },
   { label: "Danh mục", href: "/dashboard/categories", icon: <CategoryIcon /> },
   { label: "Bài viết", href: "/dashboard/articles", icon: <ArticleIcon /> },
+  { label: "Thông báo", href: "/dashboard/notifications", icon: <NotificationsIcon /> },
 ];
 
 export default function DashboardSidebar({
