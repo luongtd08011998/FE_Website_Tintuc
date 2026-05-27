@@ -107,23 +107,16 @@ export default function DashboardSidebar({
   const { user, sidebarOpen, setSidebarOpen, logout, accessToken } =
     useAuthStore();
 
-  // Auto-expand group containing active item
-  const getInitialExpanded = (): Record<string, boolean> => {
-    const expanded: Record<string, boolean> = {};
-    navGroups.forEach((g) => {
-      if (g.items.some((item) => pathname.startsWith(item.href))) {
-        expanded[g.key] = true;
-      }
-    });
-    return expanded;
-  };
-
-  const [expanded, setExpanded] = useState<Record<string, boolean>>(
-    getInitialExpanded,
-  );
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    setExpanded(getInitialExpanded());
+    const next: Record<string, boolean> = {};
+    navGroups.forEach((g) => {
+      if (g.items.some((item) => pathname.startsWith(item.href))) {
+        next[g.key] = true;
+      }
+    });
+    setExpanded(next);
   }, [pathname]);
 
   useEffect(() => {
