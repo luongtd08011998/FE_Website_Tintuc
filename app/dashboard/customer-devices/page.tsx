@@ -9,17 +9,22 @@ import {
   InputAdornment,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import DevicesIcon from "@mui/icons-material/Devices";
 import { Table, Tag, Select, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
 import dayjs from "dayjs";
 import { customerDeviceService } from "@/services/customer-device";
+import { roadService } from "@/services/road";
 import type { CustomerDeviceItem, CustomerDeviceStatus } from "@/types";
 
 const STATUS_OPTIONS: { label: string; value: CustomerDeviceStatus }[] = [
   { label: "Đã đăng ký", value: "REGISTERED" },
   { label: "Chưa đăng ký", value: "UNREGISTERED" },
+];
+
+const ACTIVE_OPTIONS: { label: string; value: number }[] = [
+  { label: "Hoạt động", value: 1 },
+  { label: "Ngưng", value: 0 },
 ];
 
 const PLATFORM_COLOR: Record<string, string> = {
@@ -33,6 +38,8 @@ function CustomerDevicesContent() {
   const [statusFilter, setStatusFilter] = useState<CustomerDeviceStatus | null>(
     null,
   );
+  const [activeFilter, setActiveFilter] = useState<number | null>(null);
+  const [roadFilter, setRoadFilter] = useState<number | null>(null);
   const [keywordSearch, setKeywordSearch] = useState("");
   const [debouncedKeyword, setDebouncedKeyword] = useState("");
 
@@ -44,17 +51,27 @@ function CustomerDevicesContent() {
     return () => clearTimeout(t);
   }, [keywordSearch]);
 
+  const { data: roadsData } = useSWR("roads", () => roadService.getAll(), {
+    revalidateOnFocus: false,
+  });
+  const roadOptions = (roadsData?.data.data ?? []).map((r) => ({
+    label: r.name,
+    value: r.id,
+  }));
+
   const fetcher = useCallback(() => {
     const params: Record<string, unknown> = {
       page: pagination.page - 1,
       size: pagination.size,
     };
     if (statusFilter) params.status = statusFilter;
+    if (activeFilter !== null) params.isActive = activeFilter;
+    if (roadFilter !== null) params.roadId = roadFilter;
     if (debouncedKeyword) params.keyword = debouncedKeyword;
     return customerDeviceService.getAll(
       params as Parameters<typeof customerDeviceService.getAll>[0],
     );
-  }, [pagination.page, pagination.size, statusFilter, debouncedKeyword]);
+  }, [pagination.page, pagination.size, statusFilter, activeFilter, roadFilter, debouncedKeyword]);
 
   const { data, isLoading } = useSWR(
     [
@@ -62,6 +79,8 @@ function CustomerDevicesContent() {
       pagination.page,
       pagination.size,
       statusFilter,
+      activeFilter,
+      roadFilter,
       debouncedKeyword,
     ],
     fetcher,
@@ -111,20 +130,34 @@ function CustomerDevicesContent() {
       width: 200,
     },
     {
-      title: "Trạng thái thiết bị",
-      dataIndex: "deviceRegistered",
-      key: "deviceRegistered",
-      width: 160,
+      title: "Trạng thái KH",
+      dataIndex: "isActive",
+      key: "isActive",
+      width: 140,
       align: "center" as const,
-      render: (v: boolean) => (
-        <Tag color={v ? "green" : "red"}>{v ? "Đã đăng ký" : "Chưa đăng ký"}</Tag>
+      render: (v: number) => (
+        <Tag color={v === 1 ? "green" : "red"}>
+          {v === 1 ? "Hoạt động" : "Ngưng"}
+        </Tag>
       ),
     },
     {
-      title: "Số thiết bị",
+      title: "Thiết bị",
+      dataIndex: "deviceRegistered",
+      key: "deviceRegistered",
+      width: 140,
+      align: "center" as const,
+      render: (v: boolean) => (
+        <Tag color={v ? "green" : "red"}>
+          {v ? "Đã đăng ký" : "Chưa đăng ký"}
+        </Tag>
+      ),
+    },
+    {
+      title: "Số TB",
       dataIndex: "deviceCount",
       key: "deviceCount",
-      width: 110,
+      width: 80,
       align: "center" as const,
     },
     {
@@ -184,7 +217,7 @@ function CustomerDevicesContent() {
             sx={{ width: 260 }}
           />
           <Select
-            placeholder="Trạng thái đăng ký"
+            placeholder="Trạng thái thiết bị"
             allowClear
             style={{ width: 180 }}
             value={statusFilter ?? undefined}
@@ -193,6 +226,31 @@ function CustomerDevicesContent() {
               setPagination((p) => ({ ...p, page: 1 }));
             }}
             options={STATUS_OPTIONS}
+          />
+          <Select
+            placeholder="Trạng thái KH"
+            allowClear
+            style={{ width: 160 }}
+            value={activeFilter ?? undefined}
+            onChange={(val) => {
+              setActiveFilter(val ?? null);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            options={ACTIVE_OPTIONS}
+          />
+          <Select
+            placeholder="Tuyến đường"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 200 }}
+            value={roadFilter ?? undefined}
+            onChange={(val) => {
+              setRoadFilter(val ?? null);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            options={roadOptions}
+            loading={roadOptions.length === 0}
           />
         </Box>
 

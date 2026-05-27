@@ -537,6 +537,7 @@ export interface CustomerDeviceItem {
   name: string;
   phone: string;
   email: string;
+  isActive: number;
   deviceRegistered: boolean;
   deviceCount: number;
   platforms: string[];
@@ -546,6 +547,8 @@ export interface CustomerDeviceItem {
 export interface CustomerDeviceListParams {
   status?: CustomerDeviceStatus;
   keyword?: string;
+  isActive?: number;
+  roadId?: number;
   page?: number;
   size?: number;
 }
