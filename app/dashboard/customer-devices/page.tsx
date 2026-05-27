@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import {
   Box,
   Typography,
@@ -18,12 +18,12 @@ import { customerDeviceService } from "@/services/customer-device";
 import { roadService } from "@/services/road";
 import type { CustomerDeviceItem, CustomerDeviceStatus } from "@/types";
 
-const STATUS_OPTIONS: { label: string; value: CustomerDeviceStatus }[] = [
+const STATUS_OPTIONS = [
   { label: "Đã đăng ký", value: "REGISTERED" },
   { label: "Chưa đăng ký", value: "UNREGISTERED" },
 ];
 
-const ACTIVE_OPTIONS: { label: string; value: number }[] = [
+const ACTIVE_OPTIONS = [
   { label: "Hoạt động", value: 1 },
   { label: "Ngưng", value: 0 },
 ];
@@ -36,11 +36,9 @@ const PLATFORM_COLOR: Record<string, string> = {
 function CustomerDevicesContent() {
   const { message } = App.useApp();
   const [pagination, setPagination] = useState({ page: 1, size: 20 });
-  const [statusFilter, setStatusFilter] = useState<CustomerDeviceStatus | null>(
-    null,
-  );
-  const [activeFilter, setActiveFilter] = useState<number | null>(null);
-  const [roadFilter, setRoadFilter] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [activeFilter, setActiveFilter] = useState<number | undefined>(undefined);
+  const [roadFilter, setRoadFilter] = useState<number | undefined>(undefined);
   const [keywordSearch, setKeywordSearch] = useState("");
   const [debouncedKeyword, setDebouncedKeyword] = useState("");
   const [exporting, setExporting] = useState(false);
@@ -56,36 +54,26 @@ function CustomerDevicesContent() {
   const { data: roadsData } = useSWR("roads", () => roadService.getAll(), {
     revalidateOnFocus: false,
   });
-  const roadOptions = (roadsData?.data?.data ?? []).map((r) => ({
+  const roadOptions = (roadsData?.data?.data ?? []).map((r: { name: string; id: number }) => ({
     label: r.name,
     value: r.id,
   }));
 
-  const fetcher = useCallback(() => {
+  const buildParams = () => {
     const params: Record<string, unknown> = {
       page: pagination.page - 1,
       size: pagination.size,
     };
     if (statusFilter) params.status = statusFilter;
-    if (activeFilter !== null) params.isActive = activeFilter;
-    if (roadFilter !== null) params.roadId = roadFilter;
+    if (activeFilter !== undefined && activeFilter !== null) params.isActive = activeFilter;
+    if (roadFilter !== undefined && roadFilter !== null) params.roadId = roadFilter;
     if (debouncedKeyword) params.keyword = debouncedKeyword;
-    return customerDeviceService.getAll(
-      params as Parameters<typeof customerDeviceService.getAll>[0],
-    );
-  }, [pagination.page, pagination.size, statusFilter, activeFilter, roadFilter, debouncedKeyword]);
+    return params;
+  };
 
   const { data, isLoading } = useSWR(
-    [
-      "customer-devices",
-      pagination.page,
-      pagination.size,
-      statusFilter,
-      activeFilter,
-      roadFilter,
-      debouncedKeyword,
-    ],
-    fetcher,
+    ["customer-devices", pagination.page, pagination.size, statusFilter, activeFilter, roadFilter, debouncedKeyword],
+    () => customerDeviceService.getAll(buildParams()),
   );
 
   const meta = data?.data?.data?.meta;
@@ -101,18 +89,12 @@ function CustomerDevicesContent() {
   const handleExportExcel = async () => {
     setExporting(true);
     try {
-      const params: Record<string, unknown> = { page: 0, size: 999999 };
-      if (statusFilter) params.status = statusFilter;
-      if (activeFilter !== null) params.isActive = activeFilter;
-      if (roadFilter !== null) params.roadId = roadFilter;
-      if (debouncedKeyword) params.keyword = debouncedKeyword;
+      const params = { ...buildParams(), page: 0, size: 999999 };
+      const res = await customerDeviceService.getAll(params);
+      const allItems = res.data?.data?.result ?? [];
 
-      const res = await customerDeviceService.getAll(
-        params as Parameters<typeof customerDeviceService.getAll>[0],
-      );
-      const allItems = res.data.data.result;
-
-      const rows = allItems.map((item, idx) => ({
+      const { exportToXlsx } = await import("@/lib/export-xlsx");
+      const rows = allItems.map((item: CustomerDeviceItem, idx: number) => ({
         STT: idx + 1,
         "Mã KH": item.digiCode,
         "Họ và tên": item.name,
@@ -121,12 +103,7 @@ function CustomerDevicesContent() {
         "Thiết bị": item.deviceRegistered ? "Đã đăng ký" : "Chưa đăng ký",
       }));
 
-      const { exportToXlsx } = await import("@/lib/export-xlsx");
-      exportToXlsx(
-        rows,
-        "Thiết bị KH",
-        `thiet_bi_khach_hang_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
-      );
+      exportToXlsx(rows, "Thiết bị KH", `thiet_bi_khach_hang_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`);
       message.success(`Xuất ${rows.length} dòng thành công`);
     } catch {
       message.error("Xuất Excel thất bại");
@@ -144,30 +121,10 @@ function CustomerDevicesContent() {
       render: (_: unknown, __: unknown, index: number) =>
         (pagination.page - 1) * pagination.size + index + 1,
     },
-    {
-      title: "Mã KH",
-      dataIndex: "digiCode",
-      key: "digiCode",
-      width: 120,
-    },
-    {
-      title: "Họ và tên",
-      dataIndex: "name",
-      key: "name",
-      width: 180,
-    },
-    {
-      title: "Số điện thoại",
-      dataIndex: "phone",
-      key: "phone",
-      width: 140,
-    },
-    {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      width: 200,
-    },
+    { title: "Mã KH", dataIndex: "digiCode", key: "digiCode", width: 120 },
+    { title: "Họ và tên", dataIndex: "name", key: "name", width: 180 },
+    { title: "Số điện thoại", dataIndex: "phone", key: "phone", width: 140 },
+    { title: "Email", dataIndex: "email", key: "email", width: 200 },
     {
       title: "Trạng thái KH",
       dataIndex: "isActive",
@@ -175,9 +132,7 @@ function CustomerDevicesContent() {
       width: 140,
       align: "center" as const,
       render: (v: number) => (
-        <Tag color={v === 1 ? "green" : "red"}>
-          {v === 1 ? "Hoạt động" : "Ngưng"}
-        </Tag>
+        <Tag color={v === 1 ? "green" : "red"}>{v === 1 ? "Hoạt động" : "Ngưng"}</Tag>
       ),
     },
     {
@@ -187,9 +142,7 @@ function CustomerDevicesContent() {
       width: 140,
       align: "center" as const,
       render: (v: boolean) => (
-        <Tag color={v ? "green" : "red"}>
-          {v ? "Đã đăng ký" : "Chưa đăng ký"}
-        </Tag>
+        <Tag color={v ? "green" : "red"}>{v ? "Đã đăng ký" : "Chưa đăng ký"}</Tag>
       ),
     },
     {
@@ -206,7 +159,7 @@ function CustomerDevicesContent() {
       width: 160,
       render: (platforms: string[]) =>
         platforms.length > 0
-          ? platforms.map((p) => (
+          ? platforms.map((p: string) => (
               <Tag key={p} color={PLATFORM_COLOR[p] ?? "default"}>
                 {p === "ANDROID" ? "Android" : p === "IOS" ? "iOS" : p}
               </Tag>
@@ -218,8 +171,7 @@ function CustomerDevicesContent() {
       dataIndex: "lastRegisteredAt",
       key: "lastRegisteredAt",
       width: 170,
-      render: (v: string | null) =>
-        v ? dayjs(v).format("DD/MM/YYYY HH:mm") : "-",
+      render: (v: string | null) => (v ? dayjs(v).format("DD/MM/YYYY HH:mm") : "-"),
     },
   ];
 
@@ -230,15 +182,7 @@ function CustomerDevicesContent() {
       </Typography>
 
       <Paper sx={{ p: 2 }}>
-        <Box
-          sx={{
-            display: "flex",
-            gap: 2,
-            mb: 2,
-            flexWrap: "wrap",
-            alignItems: "center",
-          }}
-        >
+        <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
           <TextField
             size="small"
             placeholder="Tìm theo tên hoặc mã KH..."
@@ -259,22 +203,16 @@ function CustomerDevicesContent() {
             placeholder="Trạng thái thiết bị"
             allowClear
             style={{ width: 180 }}
-            value={statusFilter ?? undefined}
-            onChange={(val) => {
-              setStatusFilter(val ?? null);
-              setPagination((p) => ({ ...p, page: 1 }));
-            }}
+            value={statusFilter}
+            onChange={(val) => { setStatusFilter(val); setPagination((p) => ({ ...p, page: 1 })); }}
             options={STATUS_OPTIONS}
           />
           <Select
             placeholder="Trạng thái KH"
             allowClear
             style={{ width: 160 }}
-            value={activeFilter ?? undefined}
-            onChange={(val) => {
-              setActiveFilter(val ?? null);
-              setPagination((p) => ({ ...p, page: 1 }));
-            }}
+            value={activeFilter}
+            onChange={(val) => { setActiveFilter(val); setPagination((p) => ({ ...p, page: 1 })); }}
             options={ACTIVE_OPTIONS}
           />
           <Select
@@ -283,11 +221,8 @@ function CustomerDevicesContent() {
             showSearch
             optionFilterProp="label"
             style={{ width: 200 }}
-            value={roadFilter ?? undefined}
-            onChange={(val) => {
-              setRoadFilter(val ?? null);
-              setPagination((p) => ({ ...p, page: 1 }));
-            }}
+            value={roadFilter}
+            onChange={(val) => { setRoadFilter(val); setPagination((p) => ({ ...p, page: 1 })); }}
             options={roadOptions}
             loading={roadOptions.length === 0}
           />
