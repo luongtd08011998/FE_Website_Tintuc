@@ -43,8 +43,8 @@ export default function DocumentsPage() {
       }),
   );
 
-  const meta = data?.data.data.meta;
-  const documents = data?.data.data.result ?? [];
+  const meta = data?.data?.data?.meta;
+  const documents = data?.data?.data?.result ?? [];
 
   const handleDelete = async (id: number) => {
     try {

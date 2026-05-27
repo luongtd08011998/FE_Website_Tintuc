@@ -86,8 +86,8 @@ function FeedbacksContent() {
     fetcher,
   );
 
-  const meta = data?.data.data.meta;
-  const feedbacks = data?.data.data.result ?? [];
+  const meta = data?.data?.data?.meta;
+  const feedbacks = data?.data?.data?.result ?? [];
 
   const handleTableChange = (config: TablePaginationConfig) => {
     setPagination({

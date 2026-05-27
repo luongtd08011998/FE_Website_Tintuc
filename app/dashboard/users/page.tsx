@@ -51,8 +51,8 @@ export default function UsersPage() {
       }),
   );
 
-  const meta = data?.data.data.meta;
-  const users = data?.data.data.result ?? [];
+  const meta = data?.data?.data?.meta;
+  const users = data?.data?.data?.result ?? [];
 
   const handleDelete = async (id: number) => {
     try {

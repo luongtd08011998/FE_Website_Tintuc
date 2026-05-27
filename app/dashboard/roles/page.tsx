@@ -43,8 +43,8 @@ export default function RolesPage() {
       }),
   );
 
-  const meta = data?.data.data.meta;
-  const roles = data?.data.data.result ?? [];
+  const meta = data?.data?.data?.meta;
+  const roles = data?.data?.data?.result ?? [];
 
   const handleDelete = async (id: number) => {
     try {

@@ -48,8 +48,8 @@ export default function MediaPage() {
     () => mediaService.getAll({ page, pageSize, title, fileType }),
   );
 
-  const mediaList = data?.data.data.result ?? [];
-  const meta = data?.data.data.meta;
+  const mediaList = data?.data?.data?.result ?? [];
+  const meta = data?.data?.data?.meta;
 
   const handleDeleteMedia = async (id: number) => {
     try {

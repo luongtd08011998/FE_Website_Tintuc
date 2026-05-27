@@ -21,8 +21,8 @@ export default function CompaniesPage() {
       companyService.getAll({ page: pagination.page, size: pagination.size }),
   );
 
-  const meta = data?.data.data.meta;
-  const companies = data?.data.data.result ?? [];
+  const meta = data?.data?.data?.meta;
+  const companies = data?.data?.data?.result ?? [];
 
   const handleDelete = async (id: number) => {
     try {

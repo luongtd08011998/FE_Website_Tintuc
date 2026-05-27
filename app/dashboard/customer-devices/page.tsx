@@ -57,7 +57,7 @@ function CustomerDevicesContent() {
   const { data: roadsData } = useSWR("roads", () => roadService.getAll(), {
     revalidateOnFocus: false,
   });
-  const roadOptions = (roadsData?.data.data ?? []).map((r) => ({
+  const roadOptions = (roadsData?.data?.data ?? []).map((r) => ({
     label: r.name,
     value: r.id,
   }));
@@ -89,8 +89,8 @@ function CustomerDevicesContent() {
     fetcher,
   );
 
-  const meta = data?.data.data.meta;
-  const devices = data?.data.data.result ?? [];
+  const meta = data?.data?.data?.meta;
+  const devices = data?.data?.data?.result ?? [];
 
   const handleTableChange = (config: TablePaginationConfig) => {
     setPagination({

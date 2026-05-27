@@ -49,7 +49,7 @@ export default function FeedbackDetailPage() {
     () => feedbackService.getById(id),
   );
 
-  const feedback: FeedbackDetail | undefined = data?.data.data;
+  const feedback: FeedbackDetail | undefined = data?.data?.data;
 
   const handleStatusChange = async (newStatus: FeedbackStatus) => {
     try {

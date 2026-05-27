@@ -144,9 +144,9 @@ function NotificationsContent() {
     fetcher,
   );
 
-  const stats = statsData?.data.data;
-  const meta = data?.data.data.meta;
-  const notifications = data?.data.data.result ?? [];
+  const stats = statsData?.data?.data;
+  const meta = data?.data?.data?.meta;
+  const notifications = data?.data?.data?.result ?? [];
 
   const handleTableChange = (config: TablePaginationConfig) => {
     setPagination({

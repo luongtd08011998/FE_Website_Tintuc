@@ -44,8 +44,8 @@ export default function PermissionsPage() {
       }),
   );
 
-  const meta = data?.data.data.meta;
-  const permissions = data?.data.data.result ?? [];
+  const meta = data?.data?.data?.meta;
+  const permissions = data?.data?.data?.result ?? [];
 
   const handleDelete = async (id: number) => {
     try {

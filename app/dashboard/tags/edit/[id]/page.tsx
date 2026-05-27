@@ -29,7 +29,7 @@ export default function EditTagPage({
     );
   }
 
-  if (!data?.data.data) return null;
+  if (!data?.data?.data) return null;
 
   return (
     <TagForm

@@ -43,8 +43,8 @@ export default function TagsPage() {
       }),
   );
 
-  const meta = data?.data.data.meta;
-  const tags = data?.data.data.result ?? [];
+  const meta = data?.data?.data?.meta;
+  const tags = data?.data?.data?.result ?? [];
 
   const handleDelete = async (id: number) => {
     try {

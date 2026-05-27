@@ -29,7 +29,7 @@ export default function EditPermissionPage({
     );
   }
 
-  if (!data?.data.data) return null;
+  if (!data?.data?.data) return null;
 
   return (
     <PermissionForm

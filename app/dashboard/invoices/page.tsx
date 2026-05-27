@@ -119,8 +119,8 @@ function InvoicesContent() {
     fetcher
   );
 
-  const meta = data?.data.data.meta;
-  const invoices = data?.data.data.result ?? [];
+  const meta = data?.data?.data?.meta;
+  const invoices = data?.data?.data?.result ?? [];
 
   const handleTableChange = (config: TablePaginationConfig) => {
     setPagination({

@@ -29,7 +29,7 @@ export default function EditRolePage({
     );
   }
 
-  if (!data?.data.data) return null;
+  if (!data?.data?.data) return null;
 
   return (
     <RoleForm
