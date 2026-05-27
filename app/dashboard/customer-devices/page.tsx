@@ -9,10 +9,12 @@ import {
   InputAdornment,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import { Table, Tag, Select, App } from "antd";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
+import { Table, Tag, Select, Button, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
 import dayjs from "dayjs";
+import * as XLSX from "xlsx";
 import { customerDeviceService } from "@/services/customer-device";
 import { roadService } from "@/services/road";
 import type { CustomerDeviceItem, CustomerDeviceStatus } from "@/types";
@@ -42,6 +44,7 @@ function CustomerDevicesContent() {
   const [roadFilter, setRoadFilter] = useState<number | null>(null);
   const [keywordSearch, setKeywordSearch] = useState("");
   const [debouncedKeyword, setDebouncedKeyword] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -96,6 +99,52 @@ function CustomerDevicesContent() {
     });
   };
 
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const params: Record<string, unknown> = { page: 0, size: 999999 };
+      if (statusFilter) params.status = statusFilter;
+      if (activeFilter !== null) params.isActive = activeFilter;
+      if (roadFilter !== null) params.roadId = roadFilter;
+      if (debouncedKeyword) params.keyword = debouncedKeyword;
+
+      const res = await customerDeviceService.getAll(
+        params as Parameters<typeof customerDeviceService.getAll>[0],
+      );
+      const allItems = res.data.data.result;
+
+      const rows = allItems.map((item, idx) => ({
+        STT: idx + 1,
+        "Mã KH": item.digiCode,
+        "Họ và tên": item.name,
+        "Số điện thoại": item.phone,
+        "Trạng thái KH": item.isActive === 1 ? "Hoạt động" : "Ngưng",
+        "Thiết bị": item.deviceRegistered ? "Đã đăng ký" : "Chưa đăng ký",
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = [
+        { wch: 6 },
+        { wch: 12 },
+        { wch: 25 },
+        { wch: 15 },
+        { wch: 14 },
+        { wch: 14 },
+      ];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Thiết bị KH");
+      XLSX.writeFile(
+        wb,
+        `thiet_bi_khach_hang_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
+      );
+      message.success(`Xuất ${rows.length} dòng thành công`);
+    } catch {
+      message.error("Xuất Excel thất bại");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const columns = [
     {
       title: "STT",
@@ -106,13 +155,13 @@ function CustomerDevicesContent() {
         (pagination.page - 1) * pagination.size + index + 1,
     },
     {
-      title: "DigiCode",
+      title: "Mã KH",
       dataIndex: "digiCode",
       key: "digiCode",
       width: 120,
     },
     {
-      title: "Họ tên",
+      title: "Họ và tên",
       dataIndex: "name",
       key: "name",
       width: 180,
@@ -202,7 +251,7 @@ function CustomerDevicesContent() {
         >
           <TextField
             size="small"
-            placeholder="Tìm theo tên hoặc digiCode..."
+            placeholder="Tìm theo tên hoặc mã KH..."
             value={keywordSearch}
             onChange={(e) => setKeywordSearch(e.target.value)}
             slotProps={{
@@ -252,6 +301,15 @@ function CustomerDevicesContent() {
             options={roadOptions}
             loading={roadOptions.length === 0}
           />
+          <Box sx={{ flexGrow: 1 }} />
+          <Button
+            type="primary"
+            icon={<FileDownloadIcon />}
+            loading={exporting}
+            onClick={handleExportExcel}
+          >
+            Xuất Excel
+          </Button>
         </Box>
 
         <Table
