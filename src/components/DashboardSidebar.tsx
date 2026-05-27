@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -17,6 +17,7 @@ import {
   IconButton,
   Avatar,
   Tooltip,
+  Collapse,
   Divider,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -35,15 +36,35 @@ import PermMediaIcon from "@mui/icons-material/PermMedia";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import DevicesIcon from "@mui/icons-material/Devices";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import GroupIcon from "@mui/icons-material/Group";
+import NewspaperIcon from "@mui/icons-material/Newspaper";
+import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import { useAuthStore } from "@/lib/store";
 import { authService } from "@/services/auth";
 import { getFileUrl } from "@/services/file";
 
 const DRAWER_WIDTH = 260;
 
-const navSections = [
+interface NavItem {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+}
+
+interface NavGroup {
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+  items: NavItem[];
+}
+
+const navGroups: NavGroup[] = [
   {
+    key: "users",
     label: "Quản lý người dùng",
+    icon: <GroupIcon />,
     items: [
       { label: "Người dùng", href: "/dashboard/users", icon: <PeopleIcon /> },
       { label: "Công ty", href: "/dashboard/companies", icon: <BusinessIcon /> },
@@ -52,7 +73,9 @@ const navSections = [
     ],
   },
   {
+    key: "articles",
     label: "Bài viết",
+    icon: <NewspaperIcon />,
     items: [
       { label: "Danh mục", href: "/dashboard/categories", icon: <CategoryIcon /> },
       { label: "Bài viết", href: "/dashboard/articles", icon: <ArticleIcon /> },
@@ -62,7 +85,9 @@ const navSections = [
     ],
   },
   {
+    key: "customer",
     label: "Chăm sóc khách hàng",
+    icon: <SupportAgentIcon />,
     items: [
       { label: "Phản hồi", href: "/dashboard/feedbacks", icon: <ForumIcon /> },
       { label: "Hóa đơn", href: "/dashboard/invoices", icon: <ReceiptIcon /> },
@@ -81,6 +106,29 @@ export default function DashboardSidebar({
   const pathname = usePathname();
   const { user, sidebarOpen, setSidebarOpen, logout, accessToken } =
     useAuthStore();
+
+  const isActive = (href: string) =>
+    href === "/dashboard"
+      ? pathname === "/dashboard"
+      : pathname.startsWith(href);
+
+  const expanded = useMemo(() => {
+    const map: Record<string, boolean> = {};
+    for (const g of navGroups) {
+      if (g.items.some((item) => isActive(item.href))) {
+        map[g.key] = true;
+      }
+    }
+    return map;
+  }, [pathname]);
+
+  const [manualExpand, setManualExpand] = useState<Record<string, boolean>>({});
+
+  const isOpen = (key: string) => manualExpand[key] ?? expanded[key] ?? false;
+
+  const toggleGroup = (key: string) => {
+    setManualExpand((prev) => ({ ...prev, [key]: !isOpen(key) }));
+  };
 
   useEffect(() => {
     const token =
@@ -104,13 +152,9 @@ export default function DashboardSidebar({
     }
   };
 
-  const isActive = (href: string) =>
-    href === "/dashboard"
-      ? pathname === "/dashboard"
-      : pathname.startsWith(href);
-
   const drawer = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Logo */}
       <Box
         sx={{
           pt: 2.5,
@@ -164,54 +208,93 @@ export default function DashboardSidebar({
             <ListItemIcon sx={{ minWidth: 36 }}>
               <DashboardIcon sx={{ fontSize: 20 }} />
             </ListItemIcon>
-            <ListItemText primary="Dashboard" />
+            <ListItemText
+              primary="Dashboard"
+              primaryTypographyProps={{ fontWeight: 600, fontSize: 14 }}
+            />
           </ListItemButton>
         </ListItem>
 
-        {/* Grouped sections */}
-        {navSections.map((section) => (
-          <Box key={section.label}>
-            <Typography
-              variant="caption"
-              fontWeight={700}
-              color="text.secondary"
-              sx={{ px: 2, py: 1, textTransform: "uppercase", letterSpacing: 0.5, fontSize: 11 }}
-            >
-              {section.label}
-            </Typography>
-            {section.items.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <ListItem key={item.href} disablePadding>
-                  <ListItemButton
-                    component={Link}
-                    href={item.href}
-                    selected={active}
-                    onClick={() => setSidebarOpen(false)}
-                    sx={{
-                      borderRadius: 1.5,
-                      py: 0.6,
-                      "&.Mui-selected": {
-                        bgcolor: "primary.main",
-                        color: "white",
-                        "& .MuiListItemIcon-root": { color: "white" },
-                        "&:hover": { bgcolor: "primary.dark" },
-                      },
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      {item.icon}
-                    </ListItemIcon>
-                    <ListItemText primary={item.label} />
-                  </ListItemButton>
-                </ListItem>
-              );
-            })}
-            <Divider sx={{ my: 0.5 }} />
-          </Box>
-        ))}
+        {/* Collapsible groups */}
+        {navGroups.map((group) => {
+          const groupActive = group.items.some((item) => isActive(item.href));
+          const open = isOpen(group.key);
+
+          return (
+            <Box key={group.key} sx={{ mb: 0.5 }}>
+              <ListItemButton
+                onClick={() => toggleGroup(group.key)}
+                sx={{
+                  borderRadius: 1.5,
+                  py: 0.75,
+                  px: 1.5,
+                  color: groupActive ? "primary.main" : "text.secondary",
+                  "&:hover": { bgcolor: "action.hover" },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 36,
+                    color: groupActive ? "primary.main" : "text.secondary",
+                  }}
+                >
+                  {group.icon}
+                </ListItemIcon>
+                <ListItemText
+                  primary={group.label}
+                  primaryTypographyProps={{
+                    fontWeight: 600,
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                  }}
+                />
+                {open ? (
+                  <ExpandLessIcon sx={{ fontSize: 18 }} />
+                ) : (
+                  <ExpandMoreIcon sx={{ fontSize: 18 }} />
+                )}
+              </ListItemButton>
+
+              <Collapse in={open} timeout="auto" unmountOnExit={false}>
+                <List disablePadding>
+                  {group.items.map((item) => (
+                    <ListItem key={item.href} disablePadding>
+                      <ListItemButton
+                        component={Link}
+                        href={item.href}
+                        selected={isActive(item.href)}
+                        onClick={() => setSidebarOpen(false)}
+                        sx={{
+                          ml: 1.5,
+                          borderRadius: 1.5,
+                          py: 0.6,
+                          "&.Mui-selected": {
+                            bgcolor: "primary.main",
+                            color: "white",
+                            "& .MuiListItemIcon-root": { color: "white" },
+                            "&:hover": { bgcolor: "primary.dark" },
+                          },
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 32 }}>
+                          {item.icon}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={item.label}
+                          primaryTypographyProps={{ fontSize: 13.5 }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  ))}
+                </List>
+              </Collapse>
+            </Box>
+          );
+        })}
       </List>
 
+      {/* User info */}
       {user && (
         <Box
           sx={{
