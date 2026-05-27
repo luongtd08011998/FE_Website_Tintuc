@@ -16,6 +16,7 @@ import useSWR from "swr";
 import dayjs from "dayjs";
 import { customerDeviceService } from "@/services/customer-device";
 import { roadService } from "@/services/road";
+import { exportToXlsx } from "@/lib/export-xlsx";
 import type { CustomerDeviceItem, CustomerDeviceStatus } from "@/types";
 
 const STATUS_OPTIONS: { label: string; value: CustomerDeviceStatus }[] = [
@@ -112,34 +113,20 @@ function CustomerDevicesContent() {
       );
       const allItems = res.data.data.result;
 
-      const header = ["STT", "Mã KH", "Họ và tên", "Số điện thoại", "Trạng thái KH", "Thiết bị"];
-      const rows = allItems.map((item, idx) => [
-        idx + 1,
-        item.digiCode,
-        item.name,
-        item.phone,
-        item.isActive === 1 ? "Hoạt động" : "Ngưng",
-        item.deviceRegistered ? "Đã đăng ký" : "Chưa đăng ký",
-      ]);
+      const rows = allItems.map((item, idx) => ({
+        STT: idx + 1,
+        "Mã KH": item.digiCode,
+        "Họ và tên": item.name,
+        "Số điện thoại": item.phone,
+        "Trạng thái KH": item.isActive === 1 ? "Hoạt động" : "Ngưng",
+        "Thiết bị": item.deviceRegistered ? "Đã đăng ký" : "Chưa đăng ký",
+      }));
 
-      const xmlHeader = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>
-<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
-  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
-<Styles><Style ss:ID="h"><Font ss:Bold="1"/></Style></Styles>
-<Worksheet ss:Name="Thiet bi KH"><Table>
-<Column ss:Width="40"/><Column ss:Width="80"/><Column ss:Width="160"/>
-<Column ss:Width="100"/><Column ss:Width="100"/><Column ss:Width="100"/>
-<Row>${header.map((h) => `<Cell ss:StyleID="h"><Data ss:Type="String">${h}</Data></Cell>`).join("")}</Row>
-${rows.map((r) => `<Row>${r.map((c, i) => `<Cell><Data ss:Type="${i === 0 ? "Number" : "String"}">${c}</Data></Cell>`).join("")}</Row>`).join("\n")}
-</Table></Worksheet></Workbook>`;
-
-      const blob = new Blob([xmlHeader], { type: "application/vnd.ms-excel" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `thiet_bi_khach_hang_${dayjs().format("YYYYMMDD_HHmmss")}.xls`;
-      a.click();
-      URL.revokeObjectURL(url);
+      exportToXlsx(
+        rows,
+        "Thiết bị KH",
+        `thiet_bi_khach_hang_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`,
+      );
       message.success(`Xuất ${rows.length} dòng thành công`);
     } catch {
       message.error("Xuất Excel thất bại");
