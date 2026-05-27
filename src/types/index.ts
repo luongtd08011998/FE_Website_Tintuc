@@ -526,3 +526,26 @@ export interface NotificationListParams {
   page?: number;
   size?: number;
 }
+
+// ─── Customer Device ──────────────────────────────────────────────────────────
+
+export type CustomerDeviceStatus = "REGISTERED" | "UNREGISTERED";
+
+export interface CustomerDeviceItem {
+  customerId: number;
+  digiCode: string;
+  name: string;
+  phone: string;
+  email: string;
+  deviceRegistered: boolean;
+  deviceCount: number;
+  platforms: string[];
+  lastRegisteredAt: string | null;
+}
+
+export interface CustomerDeviceListParams {
+  status?: CustomerDeviceStatus;
+  keyword?: string;
+  page?: number;
+  size?: number;
+}

@@ -1,0 +1,227 @@
+"use client";
+
+import { useState, useEffect, useCallback, Suspense } from "react";
+import {
+  Box,
+  Typography,
+  Paper,
+  TextField,
+  InputAdornment,
+} from "@mui/material";
+import SearchIcon from "@mui/icons-material/Search";
+import DevicesIcon from "@mui/icons-material/Devices";
+import { Table, Tag, Select, App } from "antd";
+import type { TablePaginationConfig } from "antd/es/table";
+import useSWR from "swr";
+import dayjs from "dayjs";
+import { customerDeviceService } from "@/services/customer-device";
+import type { CustomerDeviceItem, CustomerDeviceStatus } from "@/types";
+
+const STATUS_OPTIONS: { label: string; value: CustomerDeviceStatus }[] = [
+  { label: "Đã đăng ký", value: "REGISTERED" },
+  { label: "Chưa đăng ký", value: "UNREGISTERED" },
+];
+
+const PLATFORM_COLOR: Record<string, string> = {
+  ANDROID: "green",
+  IOS: "blue",
+};
+
+function CustomerDevicesContent() {
+  const { message } = App.useApp();
+  const [pagination, setPagination] = useState({ page: 1, size: 20 });
+  const [statusFilter, setStatusFilter] = useState<CustomerDeviceStatus | null>(
+    null,
+  );
+  const [keywordSearch, setKeywordSearch] = useState("");
+  const [debouncedKeyword, setDebouncedKeyword] = useState("");
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedKeyword(keywordSearch.trim());
+      setPagination((p) => ({ ...p, page: 1 }));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [keywordSearch]);
+
+  const fetcher = useCallback(() => {
+    const params: Record<string, unknown> = {
+      page: pagination.page - 1,
+      size: pagination.size,
+    };
+    if (statusFilter) params.status = statusFilter;
+    if (debouncedKeyword) params.keyword = debouncedKeyword;
+    return customerDeviceService.getAll(
+      params as Parameters<typeof customerDeviceService.getAll>[0],
+    );
+  }, [pagination.page, pagination.size, statusFilter, debouncedKeyword]);
+
+  const { data, isLoading } = useSWR(
+    [
+      "customer-devices",
+      pagination.page,
+      pagination.size,
+      statusFilter,
+      debouncedKeyword,
+    ],
+    fetcher,
+  );
+
+  const meta = data?.data.data.meta;
+  const devices = data?.data.data.result ?? [];
+
+  const handleTableChange = (config: TablePaginationConfig) => {
+    setPagination({
+      page: config.current ?? 1,
+      size: config.pageSize ?? 20,
+    });
+  };
+
+  const columns = [
+    {
+      title: "STT",
+      key: "stt",
+      width: 60,
+      align: "center" as const,
+      render: (_: unknown, __: unknown, index: number) =>
+        (pagination.page - 1) * pagination.size + index + 1,
+    },
+    {
+      title: "DigiCode",
+      dataIndex: "digiCode",
+      key: "digiCode",
+      width: 120,
+    },
+    {
+      title: "Họ tên",
+      dataIndex: "name",
+      key: "name",
+      width: 180,
+    },
+    {
+      title: "Số điện thoại",
+      dataIndex: "phone",
+      key: "phone",
+      width: 140,
+    },
+    {
+      title: "Email",
+      dataIndex: "email",
+      key: "email",
+      width: 200,
+    },
+    {
+      title: "Trạng thái thiết bị",
+      dataIndex: "deviceRegistered",
+      key: "deviceRegistered",
+      width: 160,
+      align: "center" as const,
+      render: (v: boolean) => (
+        <Tag color={v ? "green" : "red"}>{v ? "Đã đăng ký" : "Chưa đăng ký"}</Tag>
+      ),
+    },
+    {
+      title: "Số thiết bị",
+      dataIndex: "deviceCount",
+      key: "deviceCount",
+      width: 110,
+      align: "center" as const,
+    },
+    {
+      title: "Nền tảng",
+      dataIndex: "platforms",
+      key: "platforms",
+      width: 160,
+      render: (platforms: string[]) =>
+        platforms.length > 0
+          ? platforms.map((p) => (
+              <Tag key={p} color={PLATFORM_COLOR[p] ?? "default"}>
+                {p === "ANDROID" ? "Android" : p === "IOS" ? "iOS" : p}
+              </Tag>
+            ))
+          : "-",
+    },
+    {
+      title: "Lần đăng ký cuối",
+      dataIndex: "lastRegisteredAt",
+      key: "lastRegisteredAt",
+      width: 170,
+      render: (v: string | null) =>
+        v ? dayjs(v).format("DD/MM/YYYY HH:mm") : "-",
+    },
+  ];
+
+  return (
+    <Box>
+      <Typography variant="h5" fontWeight={700} sx={{ mb: 3 }}>
+        Thiết bị khách hàng
+      </Typography>
+
+      <Paper sx={{ p: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 2,
+            mb: 2,
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        >
+          <TextField
+            size="small"
+            placeholder="Tìm theo tên hoặc digiCode..."
+            value={keywordSearch}
+            onChange={(e) => setKeywordSearch(e.target.value)}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              },
+            }}
+            sx={{ width: 260 }}
+          />
+          <Select
+            placeholder="Trạng thái đăng ký"
+            allowClear
+            style={{ width: 180 }}
+            value={statusFilter ?? undefined}
+            onChange={(val) => {
+              setStatusFilter(val ?? null);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            options={STATUS_OPTIONS}
+          />
+        </Box>
+
+        <Table
+          rowKey="customerId"
+          dataSource={devices}
+          columns={columns}
+          loading={isLoading}
+          pagination={{
+            current: pagination.page,
+            pageSize: pagination.size,
+            total: meta?.total ?? 0,
+            showSizeChanger: true,
+            pageSizeOptions: [10, 20, 50, 100],
+            hideOnSinglePage: false,
+            showTotal: (total) => `Tổng ${total} khách hàng`,
+          }}
+          onChange={handleTableChange}
+          scroll={{ x: "max-content" }}
+        />
+      </Paper>
+    </Box>
+  );
+}
+
+export default function CustomerDevicesPage() {
+  return (
+    <Suspense>
+      <CustomerDevicesContent />
+    </Suspense>
+  );
+}
