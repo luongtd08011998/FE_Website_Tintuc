@@ -67,7 +67,14 @@ export default function RolesPage() {
   };
 
   const columns = [
-    { title: "ID", dataIndex: "id", key: "id", width: 60 },
+    {
+      title: "STT",
+      key: "stt",
+      width: 60,
+      align: "center" as const,
+      render: (_: unknown, __: unknown, index: number) =>
+        (pagination.page - 1) * pagination.size + index + 1,
+    },
     { title: "Tên vai trò", dataIndex: "name", key: "name" },
     {
       title: "Mô tả",
