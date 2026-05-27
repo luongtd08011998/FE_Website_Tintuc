@@ -49,10 +49,10 @@ function InvoicesContent() {
 
   // Fetch danh sách tuyến đường cho dropdown bộ lọc — chỉ khi đã có token
   const { data: roadsData, error: roadsError } = useSWR(
-    tokenReady ? "roads" : null,
+    tokenReady ? "roads-select" : null,
     async () => {
       const res = await roadService.getAll();
-      return res.data.data;
+      return res.data?.data ?? [];
     },
     { revalidateOnFocus: false }
   );

@@ -49,10 +49,13 @@ function CustomerDevicesContent() {
     return () => clearTimeout(t);
   }, [keywordSearch]);
 
-  const { data: roadsData } = useSWR("roads", () => roadService.getAll(), {
+  const { data: roadsData } = useSWR("roads-select", async () => {
+    const res = await roadService.getAll();
+    return res.data?.data ?? [];
+  }, {
     revalidateOnFocus: false,
   });
-  const roadList = roadsData?.data?.data ?? [];
+  const roadList = roadsData ?? [];
   const roadOptions = roadList.map((r: { name: string; id: number }) => ({
     label: r.name,
     value: r.id,
