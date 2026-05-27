@@ -14,7 +14,6 @@ import { Table, Tag, Select, Button, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
 import dayjs from "dayjs";
-import * as XLSX from "xlsx";
 import { customerDeviceService } from "@/services/customer-device";
 import { roadService } from "@/services/road";
 import type { CustomerDeviceItem, CustomerDeviceStatus } from "@/types";
@@ -102,6 +101,7 @@ function CustomerDevicesContent() {
   const handleExportExcel = async () => {
     setExporting(true);
     try {
+      const XLSX = await import("xlsx");
       const params: Record<string, unknown> = { page: 0, size: 999999 };
       if (statusFilter) params.status = statusFilter;
       if (activeFilter !== null) params.isActive = activeFilter;
