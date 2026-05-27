@@ -16,7 +16,6 @@ import useSWR from "swr";
 import dayjs from "dayjs";
 import { customerDeviceService } from "@/services/customer-device";
 import { roadService } from "@/services/road";
-import { exportToXlsx } from "@/lib/export-xlsx";
 import type { CustomerDeviceItem, CustomerDeviceStatus } from "@/types";
 
 const STATUS_OPTIONS: { label: string; value: CustomerDeviceStatus }[] = [
@@ -122,6 +121,7 @@ function CustomerDevicesContent() {
         "Thiết bị": item.deviceRegistered ? "Đã đăng ký" : "Chưa đăng ký",
       }));
 
+      const { exportToXlsx } = await import("@/lib/export-xlsx");
       exportToXlsx(
         rows,
         "Thiết bị KH",
