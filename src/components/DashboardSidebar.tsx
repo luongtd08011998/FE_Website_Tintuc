@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -17,7 +17,6 @@ import {
   IconButton,
   Avatar,
   Tooltip,
-  Collapse,
   Divider,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -36,35 +35,15 @@ import PermMediaIcon from "@mui/icons-material/PermMedia";
 import ReceiptIcon from "@mui/icons-material/Receipt";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import DevicesIcon from "@mui/icons-material/Devices";
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import GroupIcon from "@mui/icons-material/Group";
-import NewspaperIcon from "@mui/icons-material/Newspaper";
-import SupportAgentIcon from "@mui/icons-material/SupportAgent";
 import { useAuthStore } from "@/lib/store";
 import { authService } from "@/services/auth";
 import { getFileUrl } from "@/services/file";
 
 const DRAWER_WIDTH = 260;
 
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-}
-
-interface NavGroup {
-  key: string;
-  label: string;
-  icon: React.ReactNode;
-  items: NavItem[];
-}
-
-const navGroups: NavGroup[] = [
+const navSections = [
   {
-    key: "users",
     label: "Quản lý người dùng",
-    icon: <GroupIcon />,
     items: [
       { label: "Người dùng", href: "/dashboard/users", icon: <PeopleIcon /> },
       { label: "Công ty", href: "/dashboard/companies", icon: <BusinessIcon /> },
@@ -73,9 +52,7 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    key: "articles",
     label: "Bài viết",
-    icon: <NewspaperIcon />,
     items: [
       { label: "Danh mục", href: "/dashboard/categories", icon: <CategoryIcon /> },
       { label: "Bài viết", href: "/dashboard/articles", icon: <ArticleIcon /> },
@@ -85,9 +62,7 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    key: "customer",
     label: "Chăm sóc khách hàng",
-    icon: <SupportAgentIcon />,
     items: [
       { label: "Phản hồi", href: "/dashboard/feedbacks", icon: <ForumIcon /> },
       { label: "Hóa đơn", href: "/dashboard/invoices", icon: <ReceiptIcon /> },
@@ -107,18 +82,6 @@ export default function DashboardSidebar({
   const { user, sidebarOpen, setSidebarOpen, logout, accessToken } =
     useAuthStore();
 
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    const next: Record<string, boolean> = {};
-    navGroups.forEach((g) => {
-      if (g.items.some((item) => pathname.startsWith(item.href))) {
-        next[g.key] = true;
-      }
-    });
-    setExpanded(next);
-  }, [pathname]);
-
   useEffect(() => {
     const token =
       accessToken ??
@@ -129,10 +92,6 @@ export default function DashboardSidebar({
       router.push("/login");
     }
   }, [accessToken, router]);
-
-  const toggleGroup = (key: string) => {
-    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
 
   const handleLogout = async () => {
     try {
@@ -152,7 +111,6 @@ export default function DashboardSidebar({
 
   const drawer = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Logo */}
       <Box
         sx={{
           pt: 2.5,
@@ -167,12 +125,7 @@ export default function DashboardSidebar({
           component="img"
           src="/logocty1.jpg"
           alt="Logo công ty"
-          sx={{
-            width: 48,
-            height: 48,
-            objectFit: "contain",
-            display: "block",
-          }}
+          sx={{ width: 48, height: 48, objectFit: "contain", display: "block" }}
         />
         <Typography
           variant="caption"
@@ -190,7 +143,7 @@ export default function DashboardSidebar({
       <Divider />
 
       <List sx={{ flex: 1, px: 1, py: 1 }}>
-        {/* Dashboard - standalone */}
+        {/* Dashboard */}
         <ListItem disablePadding sx={{ mb: 0.5 }}>
           <ListItemButton
             component={Link}
@@ -211,100 +164,54 @@ export default function DashboardSidebar({
             <ListItemIcon sx={{ minWidth: 36 }}>
               <DashboardIcon sx={{ fontSize: 20 }} />
             </ListItemIcon>
-            <ListItemText
-              primary="Dashboard"
-              primaryTypographyProps={{ fontWeight: 600, fontSize: 14 }}
-            />
+            <ListItemText primary="Dashboard" />
           </ListItemButton>
         </ListItem>
 
-        {/* Collapsible groups */}
-        {navGroups.map((group) => {
-          const groupActive = group.items.some((item) => isActive(item.href));
-          const isOpen = expanded[group.key] ?? false;
-
-          return (
-            <Box key={group.key} sx={{ mb: 0.5 }}>
-              {/* Group header */}
-              <ListItemButton
-                onClick={() => toggleGroup(group.key)}
-                sx={{
-                  borderRadius: 1.5,
-                  py: 0.75,
-                  px: 1.5,
-                  color: groupActive ? "primary.main" : "text.secondary",
-                  "&:hover": {
-                    bgcolor: "action.hover",
-                  },
-                }}
-              >
-                <ListItemIcon
-                  sx={{
-                    minWidth: 36,
-                    color: groupActive ? "primary.main" : "text.secondary",
-                  }}
-                >
-                  {group.icon}
-                </ListItemIcon>
-                <ListItemText
-                  primary={group.label}
-                  primaryTypographyProps={{
-                    fontWeight: 600,
-                    fontSize: 12,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                  }}
-                />
-                {isOpen ? (
-                  <ExpandLessIcon sx={{ fontSize: 18 }} />
-                ) : (
-                  <ExpandMoreIcon sx={{ fontSize: 18 }} />
-                )}
-              </ListItemButton>
-
-              {/* Collapsible items */}
-              <Collapse in={isOpen} timeout="auto" unmountOnExit={false}>
-                <List disablePadding>
-                  {group.items.map((item) => {
-                    const active = isActive(item.href);
-                    return (
-                      <ListItem key={item.href} disablePadding>
-                        <ListItemButton
-                          component={Link}
-                          href={item.href}
-                          selected={active}
-                          onClick={() => setSidebarOpen(false)}
-                          sx={{
-                            ml: 1.5,
-                            borderRadius: 1.5,
-                            py: 0.6,
-                            "&.Mui-selected": {
-                              bgcolor: "primary.main",
-                              color: "white",
-                              "& .MuiListItemIcon-root": { color: "white" },
-                              "&:hover": { bgcolor: "primary.dark" },
-                            },
-                          }}
-                        >
-                          <ListItemIcon sx={{ minWidth: 32 }}>
-                            {item.icon}
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={item.label}
-                            primaryTypographyProps={{ fontSize: 13.5 }}
-                          />
-                        </ListItemButton>
-                      </ListItem>
-                    );
-                  })}
-                </List>
-              </Collapse>
-            </Box>
-          );
-        })}
+        {/* Grouped sections */}
+        {navSections.map((section) => (
+          <Box key={section.label}>
+            <Typography
+              variant="caption"
+              fontWeight={700}
+              color="text.secondary"
+              sx={{ px: 2, py: 1, textTransform: "uppercase", letterSpacing: 0.5, fontSize: 11 }}
+            >
+              {section.label}
+            </Typography>
+            {section.items.map((item) => {
+              const active = isActive(item.href);
+              return (
+                <ListItem key={item.href} disablePadding>
+                  <ListItemButton
+                    component={Link}
+                    href={item.href}
+                    selected={active}
+                    onClick={() => setSidebarOpen(false)}
+                    sx={{
+                      borderRadius: 1.5,
+                      py: 0.6,
+                      "&.Mui-selected": {
+                        bgcolor: "primary.main",
+                        color: "white",
+                        "& .MuiListItemIcon-root": { color: "white" },
+                        "&:hover": { bgcolor: "primary.dark" },
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      {item.icon}
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} />
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+            <Divider sx={{ my: 0.5 }} />
+          </Box>
+        ))}
       </List>
 
-      {/* User info */}
       {user && (
         <Box
           sx={{
@@ -319,12 +226,7 @@ export default function DashboardSidebar({
         >
           <Avatar
             src={user.avatar ? getFileUrl(user.avatar) : undefined}
-            sx={{
-              width: 36,
-              height: 36,
-              bgcolor: "primary.main",
-              fontSize: 14,
-            }}
+            sx={{ width: 36, height: 36, bgcolor: "primary.main", fontSize: 14 }}
           >
             {user.name.charAt(0).toUpperCase()}
           </Avatar>
@@ -343,7 +245,6 @@ export default function DashboardSidebar({
 
   return (
     <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-      {/* AppBar */}
       <AppBar
         position="fixed"
         sx={{
@@ -367,12 +268,7 @@ export default function DashboardSidebar({
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Avatar
                 src={user.avatar ? getFileUrl(user.avatar) : undefined}
-                sx={{
-                  width: 32,
-                  height: 32,
-                  bgcolor: "primary.main",
-                  fontSize: 14,
-                }}
+                sx={{ width: 32, height: 32, bgcolor: "primary.main", fontSize: 14 }}
               >
                 {user.name.charAt(0).toUpperCase()}
               </Avatar>
@@ -389,11 +285,7 @@ export default function DashboardSidebar({
         </Toolbar>
       </AppBar>
 
-      {/* Sidebar */}
-      <Box
-        component="nav"
-        sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}
-      >
+      <Box component="nav" sx={{ width: { sm: DRAWER_WIDTH }, flexShrink: { sm: 0 } }}>
         <Drawer
           variant="temporary"
           open={sidebarOpen}
@@ -423,7 +315,6 @@ export default function DashboardSidebar({
         </Drawer>
       </Box>
 
-      {/* Main content */}
       <Box
         component="main"
         sx={{
