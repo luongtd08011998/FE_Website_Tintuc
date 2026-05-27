@@ -9,8 +9,7 @@ import {
   InputAdornment,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import { Table, Tag, Select, Button, App } from "antd";
+import { Table, Tag, Select, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
 import dayjs from "dayjs";
@@ -41,7 +40,6 @@ function CustomerDevicesContent() {
   const [roadFilter, setRoadFilter] = useState<number | undefined>(undefined);
   const [keywordSearch, setKeywordSearch] = useState("");
   const [debouncedKeyword, setDebouncedKeyword] = useState("");
-  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -54,62 +52,35 @@ function CustomerDevicesContent() {
   const { data: roadsData } = useSWR("roads", () => roadService.getAll(), {
     revalidateOnFocus: false,
   });
-  const roadOptions = (roadsData?.data?.data ?? []).map((r: { name: string; id: number }) => ({
+  const roadList = roadsData?.data?.data ?? [];
+  const roadOptions = roadList.map((r: { name: string; id: number }) => ({
     label: r.name,
     value: r.id,
   }));
 
-  const buildParams = () => {
-    const params: Record<string, unknown> = {
-      page: pagination.page - 1,
-      size: pagination.size,
-    };
-    if (statusFilter) params.status = statusFilter;
-    if (activeFilter !== undefined && activeFilter !== null) params.isActive = activeFilter;
-    if (roadFilter !== undefined && roadFilter !== null) params.roadId = roadFilter;
-    if (debouncedKeyword) params.keyword = debouncedKeyword;
-    return params;
-  };
-
   const { data, isLoading } = useSWR(
     ["customer-devices", pagination.page, pagination.size, statusFilter, activeFilter, roadFilter, debouncedKeyword],
-    () => customerDeviceService.getAll(buildParams()),
+    () => {
+      const params: Record<string, unknown> = {
+        page: pagination.page - 1,
+        size: pagination.size,
+      };
+      if (statusFilter) params.status = statusFilter;
+      if (activeFilter != null) params.isActive = activeFilter;
+      if (roadFilter != null) params.roadId = roadFilter;
+      if (debouncedKeyword) params.keyword = debouncedKeyword;
+      return customerDeviceService.getAll(params);
+    },
   );
 
   const meta = data?.data?.data?.meta;
-  const devices = data?.data?.data?.result ?? [];
+  const devices: CustomerDeviceItem[] = data?.data?.data?.result ?? [];
 
   const handleTableChange = (config: TablePaginationConfig) => {
     setPagination({
       page: config.current ?? 1,
       size: config.pageSize ?? 20,
     });
-  };
-
-  const handleExportExcel = async () => {
-    setExporting(true);
-    try {
-      const params = { ...buildParams(), page: 0, size: 999999 };
-      const res = await customerDeviceService.getAll(params);
-      const allItems = res.data?.data?.result ?? [];
-
-      const { exportToXlsx } = await import("@/lib/export-xlsx");
-      const rows = allItems.map((item: CustomerDeviceItem, idx: number) => ({
-        STT: idx + 1,
-        "Mã KH": item.digiCode,
-        "Họ và tên": item.name,
-        "Số điện thoại": item.phone,
-        "Trạng thái KH": item.isActive === 1 ? "Hoạt động" : "Ngưng",
-        "Thiết bị": item.deviceRegistered ? "Đã đăng ký" : "Chưa đăng ký",
-      }));
-
-      exportToXlsx(rows, "Thiết bị KH", `thiet_bi_khach_hang_${dayjs().format("YYYYMMDD_HHmmss")}.xlsx`);
-      message.success(`Xuất ${rows.length} dòng thành công`);
-    } catch {
-      message.error("Xuất Excel thất bại");
-    } finally {
-      setExporting(false);
-    }
   };
 
   const columns = [
@@ -226,15 +197,6 @@ function CustomerDevicesContent() {
             options={roadOptions}
             loading={roadOptions.length === 0}
           />
-          <Box sx={{ flexGrow: 1 }} />
-          <Button
-            type="primary"
-            icon={<FileDownloadIcon />}
-            loading={exporting}
-            onClick={handleExportExcel}
-          >
-            Xuất Excel
-          </Button>
         </Box>
 
         <Table
