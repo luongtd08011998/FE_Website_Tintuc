@@ -29,4 +29,10 @@ export const invoiceService = {
       ...(employeePhone && { employeePhone }),
     });
   },
+
+  sendInvoiceNotification: async (monthInvoiceIds: number[]) => {
+    return axiosInstance.post<ApiResponse<{ sentCount: number; skipCount: number }>>("/admin/invoices/send-invoice-notification", {
+      monthInvoiceIds,
+    });
+  },
 };

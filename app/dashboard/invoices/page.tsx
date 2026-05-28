@@ -9,6 +9,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import QrCodeIcon from "@mui/icons-material/QrCode";
+import SendIcon from "@mui/icons-material/Send";
 import { Table, DatePicker, Select, Tag, Modal, message, App } from "antd";
 import type { TablePaginationConfig } from "antd/es/table";
 import useSWR from "swr";
@@ -38,6 +39,7 @@ function InvoicesContent() {
     digiCode: "",
   });
   const [roadId, setRoadId] = useState<number | null>(null);
+  const [invoiceNotifyStatus, setInvoiceNotifyStatus] = useState<number | null>(null);
 
   // Đọc token sau hydration (tránh SSR mismatch với localStorage)
   const [tokenReady, setTokenReady] = useState(false);
@@ -77,6 +79,7 @@ function InvoicesContent() {
   const [cutoffEmployeeName, setCutoffEmployeeName] = useState("");
   const [cutoffEmployeePhone, setCutoffEmployeePhone] = useState("");
   const [isSendingCutoff, setIsSendingCutoff] = useState(false);
+  const [isSendingInvoiceNotify, setIsSendingInvoiceNotify] = useState(false);
   const [qrModal, setQrModal] = useState<{ open: boolean; url: string | null; customerName: string }>({
     open: false,
     url: null,
@@ -97,7 +100,7 @@ function InvoicesContent() {
   // Reset selection khi đổi trang hoặc filter
   useEffect(() => {
     setSelectedRowKeys([]);
-  }, [pagination.page, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode, roadId]);
+  }, [pagination.page, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode, roadId, invoiceNotifyStatus]);
 
   const fetcher = useCallback(() => {
     const params: Record<string, unknown> = {
@@ -110,12 +113,13 @@ function InvoicesContent() {
     if (debounced.customerName) params.customerName = debounced.customerName;
     if (debounced.digiCode) params.digiCode = debounced.digiCode;
     if (roadId !== null) params.roadId = roadId;
-    
+    if (invoiceNotifyStatus !== null) params.invoiceNotifyStatus = invoiceNotifyStatus;
+
     return invoiceService.getAll(params);
-  }, [pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode, roadId]);
+  }, [pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode, roadId, invoiceNotifyStatus]);
 
   const { data, isLoading, mutate } = useSWR(
-    yearMonth ? ["invoices", pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode, roadId] : null,
+    yearMonth ? ["invoices", pagination.page, pagination.size, yearMonth, paymentStatus, remindStatus, debounced.customerName, debounced.digiCode, roadId, invoiceNotifyStatus] : null,
     fetcher
   );
 
@@ -224,6 +228,7 @@ function InvoicesContent() {
       if (debounced.customerName) params.customerName = debounced.customerName;
       if (debounced.digiCode) params.digiCode = debounced.digiCode;
       if (roadId !== null) params.roadId = roadId;
+      if (invoiceNotifyStatus !== null) params.invoiceNotifyStatus = invoiceNotifyStatus;
 
       const res = await invoiceService.getAll(params);
       const rows: AdminInvoice[] = res.data.data.result ?? [];
@@ -235,7 +240,7 @@ function InvoicesContent() {
 
       // Tạo nội dung CSV
       const PAYMENT_LABEL: Record<number, string> = { 1: "Chưa thanh toán", 2: "Đã thanh toán" };
-      const headers = ["STT", "Mã KH", "Tên khách hàng", "Kỳ hóa đơn", "Số hóa đơn", "Tuyến đường", "Tổng tiền (VNĐ)", "Trạng thái", "Nhắc nợ"];
+      const headers = ["STT", "Mã KH", "Tên khách hàng", "Kỳ hóa đơn", "Số hóa đơn", "Tuyến đường", "Tổng tiền (VNĐ)", "Trạng thái", "Nhắc nợ", "TB hóa đơn"];
       const csvData = rows.map((row, idx) => [
         idx + 1,
         row.digiCode,
@@ -246,6 +251,7 @@ function InvoicesContent() {
         row.totalAmount,
         PAYMENT_LABEL[row.paymentStatus] ?? "",
         row.isReminded ? "Đã nhắc" : "Chưa nhắc",
+        row.isInvoiceNotified ? "Đã gửi" : "Chưa gửi",
       ]);
 
       const csvContent = [headers, ...csvData]
@@ -465,6 +471,32 @@ function InvoicesContent() {
     });
   };
 
+  // ── Gửi thông báo hóa đơn ──
+  const handleSendInvoiceNotification = () => {
+    if (selectedRowKeys.length === 0) return;
+    modal.confirm({
+      title: "Gửi thông báo hóa đơn",
+      content: `Gửi thông báo hóa đơn cho ${selectedRowKeys.length} hóa đơn đã chọn?`,
+      okText: "Gửi ngay",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          setIsSendingInvoiceNotify(true);
+          const ids = selectedRowKeys.map((k) => Number(k));
+          const res = await invoiceService.sendInvoiceNotification(ids);
+          const result = res.data.data;
+          appMessage.success(`Gửi thành công ${result.sentCount} thông báo, bỏ qua ${result.skipCount}.`);
+          setSelectedRowKeys([]);
+          mutate();
+        } catch (error: any) {
+          appMessage.error("Có lỗi xảy ra khi gửi thông báo: " + error.message);
+        } finally {
+          setIsSendingInvoiceNotify(false);
+        }
+      },
+    });
+  };
+
 
   const rowSelection = {
     selectedRowKeys,
@@ -528,6 +560,15 @@ function InvoicesContent() {
         if (v === 2) return <Tag color="green">Đã thanh toán</Tag>;
         return <Tag>Không xác định</Tag>;
       },
+    },
+    {
+      title: "TB hóa đơn",
+      dataIndex: "isInvoiceNotified",
+      key: "isInvoiceNotified",
+      width: 110,
+      render: (v: boolean) => v
+        ? <Tag color="blue">Đã gửi</Tag>
+        : <Tag color="default">Chưa gửi</Tag>,
     },
     {
       title: "Hành động",
@@ -748,6 +789,15 @@ function InvoicesContent() {
                   Cúp nước ({selectedRowKeys.length})
                 </Button>
               )}
+              <Button
+                variant="contained"
+                color="secondary"
+                startIcon={<SendIcon />}
+                onClick={handleSendInvoiceNotification}
+                disabled={isSendingInvoiceNotify}
+              >
+                Gửi TB hóa đơn ({selectedRowKeys.length})
+              </Button>
             </>
           )}
           {yearMonth && (
@@ -873,6 +923,22 @@ function InvoicesContent() {
               label: `${String(r.type).padStart(3, "0")} - ${r.name}`,
               value: r.id,
             }))}
+          />
+
+          <Select
+            placeholder="TB hóa đơn"
+            allowClear
+            style={{ width: 160 }}
+            value={invoiceNotifyStatus ?? ""}
+            onChange={(val) => {
+              setInvoiceNotifyStatus(val !== "" && val !== null && val !== undefined ? Number(val) : null);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            options={[
+              { label: "Tất cả", value: "" },
+              { label: "Chưa gửi TB", value: 0 },
+              { label: "Đã gửi TB", value: 1 },
+            ]}
           />
         </Box>
 

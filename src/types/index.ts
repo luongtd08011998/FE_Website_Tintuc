@@ -454,6 +454,7 @@ export interface AdminInvoice {
   isReminded?: boolean;
   isOverdue?: boolean;
   isWaterCutoff?: boolean;
+  isInvoiceNotified?: boolean;
   hasReplacement?: boolean;
   fkey: string | null;
   qrUrl: string | null;
@@ -469,6 +470,7 @@ export interface AdminInvoiceParams {
   customerName?: string;
   digiCode?: string;
   remindStatus?: number;
+  invoiceNotifyStatus?: number;
   roadId?: number;
 }
 
