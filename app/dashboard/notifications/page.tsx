@@ -24,10 +24,12 @@ import type { TablePaginationConfig } from "antd/es/table";
 import useSWR, { mutate as globalMutate } from "swr";
 import dayjs from "dayjs";
 import { notificationService } from "@/services/notification";
+import { roadService } from "@/services/road";
 import type {
   NotificationItem,
   NotificationType,
   NotificationDeliveryStatus,
+  Road,
 } from "@/types";
 
 const TYPE_OPTIONS: { label: string; value: NotificationType }[] = [
@@ -87,6 +89,24 @@ function NotificationsContent() {
   const [customerIdSearch, setCustomerIdSearch] = useState("");
   const [debouncedCustomerId, setDebouncedCustomerId] = useState("");
   const [resendingIds, setResendingIds] = useState<Set<number>>(new Set());
+  const [roadId, setRoadId] = useState<number | null>(null);
+
+  const [tokenReady, setTokenReady] = useState(false);
+  useEffect(() => {
+    if (typeof window !== "undefined" && !!localStorage.getItem("accessToken")) {
+      setTokenReady(true);
+    }
+  }, []);
+
+  const { data: roadsData } = useSWR(
+    tokenReady ? "roads-select-notif" : null,
+    async () => {
+      const res = await roadService.getAll();
+      return res.data?.data ?? [];
+    },
+    { revalidateOnFocus: false },
+  );
+  const roads: Road[] = roadsData ?? [];
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -117,6 +137,7 @@ function NotificationsContent() {
     const cid = Number(debouncedCustomerId);
     if (debouncedCustomerId && !isNaN(cid) && cid > 0)
       params.customerId = cid;
+    if (roadId !== null) params.roadId = roadId;
     return notificationService.getAll(
       params as Parameters<typeof notificationService.getAll>[0],
     );
@@ -128,6 +149,7 @@ function NotificationsContent() {
     fromStr,
     toStr,
     debouncedCustomerId,
+    roadId,
   ]);
 
   const { data, isLoading, mutate } = useSWR(
@@ -140,6 +162,7 @@ function NotificationsContent() {
       fromStr,
       toStr,
       debouncedCustomerId,
+      roadId,
     ],
     fetcher,
   );
@@ -433,6 +456,23 @@ function NotificationsContent() {
               setDateRange(dates as [dayjs.Dayjs | null, dayjs.Dayjs | null] | null);
               setPagination((p) => ({ ...p, page: 1 }));
             }}
+          />
+          <Select
+            placeholder="Tuyến đường"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            style={{ width: 240 }}
+            popupMatchSelectWidth={false}
+            value={roadId ?? undefined}
+            onChange={(val) => {
+              setRoadId(val !== undefined && val !== null ? Number(val) : null);
+              setPagination((p) => ({ ...p, page: 1 }));
+            }}
+            options={roads.map((r) => ({
+              label: `${String(r.type).padStart(3, "0")} - ${r.name}`,
+              value: r.id,
+            }))}
           />
         </Box>
 

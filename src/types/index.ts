@@ -523,6 +523,7 @@ export interface NotificationListParams {
   type?: NotificationType;
   deliveryStatus?: NotificationDeliveryStatus;
   customerId?: number;
+  roadId?: number;
   createdFrom?: string;
   createdTo?: string;
   page?: number;
