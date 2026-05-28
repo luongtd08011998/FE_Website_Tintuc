@@ -161,7 +161,7 @@ export function exportToXlsx(
     "xl/worksheets/sheet1.xml": str(worksheet),
   });
 
-  const blob = new Blob([zipped], {
+  const blob = new Blob([zipped.buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
   const url = URL.createObjectURL(blob);
