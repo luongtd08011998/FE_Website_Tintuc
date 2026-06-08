@@ -525,6 +525,7 @@ export interface NotificationListParams {
   type?: NotificationType;
   deliveryStatus?: NotificationDeliveryStatus;
   customerId?: number;
+  customerDigiCode?: string;
   roadId?: number;
   createdFrom?: string;
   createdTo?: string;

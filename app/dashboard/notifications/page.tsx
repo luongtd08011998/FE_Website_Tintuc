@@ -136,9 +136,8 @@ function NotificationsContent() {
     if (statusFilter) params.deliveryStatus = statusFilter;
     if (fromStr) params.createdFrom = fromStr;
     if (toStr) params.createdTo = toStr;
-    const cid = Number(debouncedCustomerId);
-    if (debouncedCustomerId && !isNaN(cid) && cid > 0)
-      params.customerId = cid;
+    if (debouncedCustomerId)
+      params.customerDigiCode = debouncedCustomerId;
     if (roadId !== null) params.roadId = roadId;
     return notificationService.getAll(
       params as Parameters<typeof notificationService.getAll>[0],
