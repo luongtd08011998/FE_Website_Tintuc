@@ -80,6 +80,7 @@ function InvoicesContent() {
   const [cutoffEmployeePhone, setCutoffEmployeePhone] = useState("");
   const [isSendingCutoff, setIsSendingCutoff] = useState(false);
   const [isSendingInvoiceNotify, setIsSendingInvoiceNotify] = useState(false);
+  const [isSendingPaymentNotify, setIsSendingPaymentNotify] = useState(false);
   const [qrModal, setQrModal] = useState<{ open: boolean; url: string | null; customerName: string }>({
     open: false,
     url: null,
@@ -497,15 +498,49 @@ function InvoicesContent() {
     });
   };
 
+  // ── Gửi thông báo xác nhận thanh toán ──
+  const handleSendPaymentNotification = () => {
+    const paidSelected = selectedRowKeys.filter((k) => {
+      const inv = invoices.find((i: AdminInvoice) => i.id === k);
+      return inv && inv.paymentStatus === 2;
+    });
+    if (paidSelected.length === 0) return;
+    modal.confirm({
+      title: "Gửi thông báo thanh toán",
+      content: `Gửi thông báo xác nhận thanh toán cho ${paidSelected.length} hóa đơn đã chọn?`,
+      okText: "Gửi ngay",
+      cancelText: "Hủy",
+      onOk: async () => {
+        try {
+          setIsSendingPaymentNotify(true);
+          const ids = paidSelected.map((k) => Number(k));
+          const res = await invoiceService.sendPaymentNotification(ids);
+          const result = res.data.data;
+          const msg = result.skipCount > 0
+            ? `Đã gửi ${result.sentCount}, bỏ qua ${result.skipCount} đã gửi trước đó`
+            : `Đã gửi ${result.sentCount} thông báo`;
+          appMessage.success(msg);
+          setSelectedRowKeys([]);
+          mutate();
+        } catch (error: any) {
+          appMessage.error("Có lỗi xảy ra khi gửi thông báo: " + error.message);
+        } finally {
+          setIsSendingPaymentNotify(false);
+        }
+      },
+    });
+  };
+
 
   const rowSelection = {
     selectedRowKeys,
     onChange: (keys: React.Key[]) => setSelectedRowKeys(keys),
     getCheckboxProps: (record: AdminInvoice) => ({
-      // Vô hiệu hóa checkbox cho hóa đơn đã thanh toán hoặc hóa đơn thay thế
-      disabled: record.paymentStatus === 2 || record.hasReplacement,
+      // Chỉ disable hóa đơn thay thế; hóa đơn đã thanh toán vẫn chọn được để gửi TB thanh toán
+      disabled: record.hasReplacement === true,
     }),
   };
+
 
   const columns = [
     {
@@ -571,12 +606,25 @@ function InvoicesContent() {
         : <Tag color="default">Chưa gửi</Tag>,
     },
     {
+      title: "TB thanh toán",
+      dataIndex: "isPaymentNotified",
+      key: "isPaymentNotified",
+      width: 120,
+      render: (_: any, record: AdminInvoice) => {
+        if (record.paymentStatus !== 2) return <Tag color="default">—</Tag>;
+        return record.isPaymentNotified
+          ? <Tag color="cyan">Đã gửi</Tag>
+          : <Tag color="orange">Chưa gửi</Tag>;
+      },
+    },
+    {
       title: "Hành động",
       key: "action",
-      width: 300,
+      width: 320,
       render: (_: any, record: AdminInvoice) => {
         const hasReplacement = record.hasReplacement;
         const unpaid = record.paymentStatus === 1 && !hasReplacement;
+        const paid = record.paymentStatus === 2;
 
         const qrButton = record.qrUrl ? (
           <Button
@@ -709,6 +757,47 @@ function InvoicesContent() {
               );
             }
           }
+        } else if (paid && !hasReplacement) {
+          // Hóa đơn đã thanh toán — chỉ hiện nút gửi TB thanh toán nếu chưa gửi
+          if (!record.isPaymentNotified) {
+            actions = (
+              <Button
+                key="payment_notify"
+                variant="outlined"
+                color="success"
+                size="small"
+                startIcon={<SendIcon />}
+                onClick={() => {
+                  modal.confirm({
+                    title: "Gửi thông báo thanh toán",
+                    content: `Gửi thông báo xác nhận thanh toán cho khách hàng ${record.customerName}?`,
+                    okText: "Gửi ngay",
+                    cancelText: "Hủy",
+                    onOk: async () => {
+                      try {
+                        setIsSendingPaymentNotify(true);
+                        const res = await invoiceService.sendPaymentNotification([record.id]);
+                        const result = res.data.data;
+                        if (result.sentCount > 0) {
+                          appMessage.success(`Đã gửi thông báo thanh toán cho ${record.customerName}.`);
+                        } else {
+                          appMessage.info("Thông báo đã được gửi trước đó.");
+                        }
+                        mutate();
+                      } catch (error: any) {
+                        appMessage.error("Có lỗi xảy ra: " + error.message);
+                      } finally {
+                        setIsSendingPaymentNotify(false);
+                      }
+                    },
+                  });
+                }}
+                disabled={isSendingPaymentNotify}
+              >
+                Gửi TB TT
+              </Button>
+            );
+          }
         } else if (hasReplacement) {
            actions = <Tag color="default">Hóa đơn thay thế</Tag>;
         }
@@ -798,6 +887,23 @@ function InvoicesContent() {
               >
                 Gửi TB hóa đơn ({selectedRowKeys.length})
               </Button>
+              {(() => {
+                const paidCount = selectedRowKeys.filter((k) => {
+                  const inv = invoices.find((i: AdminInvoice) => i.id === k);
+                  return inv && inv.paymentStatus === 2;
+                }).length;
+                return paidCount > 0 ? (
+                  <Button
+                    variant="contained"
+                    color="success"
+                    startIcon={<SendIcon />}
+                    onClick={handleSendPaymentNotification}
+                    disabled={isSendingPaymentNotify}
+                  >
+                    Gửi TB thanh toán ({paidCount})
+                  </Button>
+                ) : null;
+              })()}
             </>
           )}
           {yearMonth && (

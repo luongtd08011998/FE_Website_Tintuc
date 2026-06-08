@@ -35,4 +35,10 @@ export const invoiceService = {
       monthInvoiceIds,
     });
   },
+
+  sendPaymentNotification: async (monthInvoiceIds: number[]) => {
+    return axiosInstance.post<ApiResponse<{ sentCount: number; skipCount: number }>>("/admin/invoices/send-payment-notification", {
+      monthInvoiceIds,
+    });
+  },
 };

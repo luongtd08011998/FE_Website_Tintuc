@@ -39,6 +39,7 @@ const TYPE_OPTIONS: { label: string; value: NotificationType }[] = [
   { label: "Quá hạn", value: "OVERDUE" },
   { label: "Cắt nước", value: "WATER_CUTOFF" },
   { label: "Phản hồi", value: "FEEDBACK" },
+  { label: "Tin tức", value: "NEWS" },
 ];
 
 const TYPE_LABEL: Record<NotificationType, string> = {
@@ -48,6 +49,7 @@ const TYPE_LABEL: Record<NotificationType, string> = {
   OVERDUE: "Quá hạn",
   WATER_CUTOFF: "Cắt nước",
   FEEDBACK: "Phản hồi",
+  NEWS: "Tin tức",
 };
 
 const DELIVERY_STATUS_OPTIONS: {
@@ -120,7 +122,7 @@ function NotificationsContent() {
   const toStr = dateRange?.[1]?.endOf("day").format("YYYY-MM-DDTHH:mm:ss") ?? "";
 
   const { data: statsData } = useSWR(
-    "notification-statistics",
+    tokenReady ? "notification-statistics" : null,
     () => notificationService.getStatistics(),
     { revalidateOnFocus: false },
   );

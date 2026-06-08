@@ -455,6 +455,7 @@ export interface AdminInvoice {
   isOverdue?: boolean;
   isWaterCutoff?: boolean;
   isInvoiceNotified?: boolean;
+  isPaymentNotified?: boolean;
   hasReplacement?: boolean;
   fkey: string | null;
   qrUrl: string | null;
@@ -482,7 +483,8 @@ export type NotificationType =
   | "DEBT_REMINDER"
   | "OVERDUE"
   | "WATER_CUTOFF"
-  | "FEEDBACK";
+  | "FEEDBACK"
+  | "NEWS";
 
 export type NotificationDeliveryStatus =
   | "PENDING"
